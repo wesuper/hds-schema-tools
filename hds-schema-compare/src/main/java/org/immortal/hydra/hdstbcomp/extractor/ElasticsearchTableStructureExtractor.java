@@ -4,7 +4,7 @@ import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.immortal.hydra.hdstbcomp.config.DataSourceConfig;
@@ -63,18 +63,18 @@ public class ElasticsearchTableStructureExtractor implements TableStructureExtra
             extractIndexSettings(tableStructure, indexSettings);
             
             // 获取映射信息
-            ImmutableOpenMap<String, MappingMetaData> mappings = response.getMappings().get(indexName);
+            ImmutableOpenMap<String, MappingMetadata> mappings = response.getMappings().get(indexName);
             if (mappings != null && !mappings.isEmpty()) {
                 // 在ES 7.x以后，类型可能为_doc或者被弃用
                 String mappingType = "_doc";
                 if (mappings.containsKey(mappingType)) {
-                    MappingMetaData mappingMetaData = mappings.get(mappingType);
+                    MappingMetadata mappingMetaData = mappings.get(mappingType);
                     extractMappingMetadata(tableStructure, mappingMetaData);
                 } else {
                     // 如果没有_doc类型，获取第一个可用的映射
                     for (Object key : mappings.keys().toArray()) {
                         String type = key.toString();
-                        MappingMetaData mappingMetaData = mappings.get(type);
+                        MappingMetadata mappingMetaData = mappings.get(type);
                         extractMappingMetadata(tableStructure, mappingMetaData);
                         break;
                     }
@@ -122,7 +122,7 @@ public class ElasticsearchTableStructureExtractor implements TableStructureExtra
      * @param mappingMetaData 映射元数据
      */
     @SuppressWarnings("unchecked")
-    private void extractMappingMetadata(TableStructure tableStructure, MappingMetaData mappingMetaData) {
+    private void extractMappingMetadata(TableStructure tableStructure, MappingMetadata mappingMetaData) {
         try {
             Map<String, Object> mappingMap = mappingMetaData.sourceAsMap();
             
