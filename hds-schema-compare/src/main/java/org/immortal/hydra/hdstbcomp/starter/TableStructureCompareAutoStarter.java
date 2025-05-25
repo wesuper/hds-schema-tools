@@ -123,6 +123,9 @@ public class TableStructureCompareAutoStarter implements ApplicationRunner {
                             logger.info("  {} Column '{}' has different properties", level, diff.getColumnName());
                         }
                         break;
+                    default:
+                        logger.info("  {} Column '{}' has unknown difference type: {}", level, diff.getColumnName(), diff.getType());
+                        break;
                 }
             });
         }
@@ -150,6 +153,9 @@ public class TableStructureCompareAutoStarter implements ApplicationRunner {
                         } else {
                             logger.info("  {} Index '{}' has different properties", level, diff.getIndexName());
                         }
+                        break;
+                    default:
+                        logger.info("  {} Index '{}' has unknown difference type: {}", level, diff.getIndexName(), diff.getType());
                         break;
                 }
             });

@@ -32,7 +32,7 @@ public class TableStructureExtractorFactory {
     public TableStructureExtractorFactory(List<TableStructureExtractor> extractors) {
         for (TableStructureExtractor extractor : extractors) {
             String type = extractor.getSupportedType();
-            extractorMap.put(type.toLowerCase(), extractor);
+            extractorMap.put(type.toLowerCase(java.util.Locale.ROOT), extractor);
             logger.info("Registered table structure extractor for type: {}", type);
         }
     }
@@ -48,7 +48,7 @@ public class TableStructureExtractorFactory {
             return null;
         }
         
-        TableStructureExtractor extractor = extractorMap.get(sourceType.toLowerCase());
+        TableStructureExtractor extractor = extractorMap.get(sourceType.toLowerCase(java.util.Locale.ROOT));
         if (extractor == null) {
             logger.warn("No table structure extractor found for type: {}", sourceType);
         }
@@ -63,7 +63,7 @@ public class TableStructureExtractorFactory {
      * @return 是否支持
      */
     public boolean supportsType(String sourceType) {
-        return sourceType != null && extractorMap.containsKey(sourceType.toLowerCase());
+        return sourceType != null && extractorMap.containsKey(sourceType.toLowerCase(java.util.Locale.ROOT));
     }
     
     /**

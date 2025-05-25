@@ -75,31 +75,30 @@ public class TidbTableStructureExtractor extends MySqlTableStructureExtractor {
             jdbcTemplate.query(TIDB_TABLE_ATTRIBUTES_SQL, 
                 new Object[] { catalog, tableName }, 
                 rs -> {
-                    if (rs.next()) {
-                        Map<String, Object> properties = tableStructure.getProperties();
+                    Map<String, Object> properties = tableStructure.getProperties();
+                    
+                    // 提取AUTO_RANDOM信息 (TiDB特有的自增类型)
+                    String pkType = rs.getString("tidb_pk_type");
+                    if (pkType != null && !pkType.isEmpty()) {
+                        properties.put("tidb_pk_type", pkType);
                         
-                        // 提取AUTO_RANDOM信息 (TiDB特有的自增类型)
-                        String pkType = rs.getString("tidb_pk_type");
-                        if (pkType != null && !pkType.isEmpty()) {
-                            properties.put("tidb_pk_type", pkType);
-                            
-                            // 如果是AUTO_RANDOM，需要标记对应的列
-                            if ("AUTO_RANDOM".equalsIgnoreCase(pkType)) {
-                                updateAutoRandomColumn(tableStructure);
-                            }
+                        // 如果是AUTO_RANDOM，需要标记对应的列
+                        if ("AUTO_RANDOM".equalsIgnoreCase(pkType)) {
+                            updateAutoRandomColumn(tableStructure);
                         }
-                        
-                        // 行ID分片信息
-                        String rowIdSharding = rs.getString("tidb_row_id_sharding_info");
-                        if (rowIdSharding != null && !rowIdSharding.isEmpty()) {
-                            properties.put("tidb_row_id_sharding", rowIdSharding);
-                        }
+                    }
+                    
+                    // 行ID分片信息
+                    String rowIdSharding = rs.getString("tidb_row_id_sharding_info");
+                    if (rowIdSharding != null && !rowIdSharding.isEmpty()) {
+                        properties.put("tidb_row_id_sharding", rowIdSharding);
                     }
                     return null;
                 }
             );
-        } catch (Exception e) {
-            logger.warn("Error fetching TiDB specific attributes: {}", e.getMessage());
+        } catch (RuntimeException | java.sql.SQLException e) {
+            logger.warn("Error fetching TiDB specific attributes for table {}: {}", 
+                    tableConfig.getTableName(), e.getMessage());
         }
     }
     

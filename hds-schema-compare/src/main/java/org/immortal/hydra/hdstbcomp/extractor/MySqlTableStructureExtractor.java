@@ -160,9 +160,10 @@ public class MySqlTableStructureExtractor implements TableStructureExtractor {
                         is.setPrimary("PRIMARY".equalsIgnoreCase(indexName));
                         try {
                             is.setUnique(!rs.getBoolean("NON_UNIQUE"));
-                            is.setIndexType(rs.getShort("TYPE") == DatabaseMetaData.tableIndexStatistic ? "STATISTIC" : "NORMAL");
+                            short indexType = rs.getShort("TYPE");
+                            is.setIndexType(indexType == DatabaseMetaData.tableIndexStatistic ? "STATISTIC" : "NORMAL");
                         } catch (SQLException e) {
-                            logger.error("Error reading index metadata: {}", e.getMessage(), e);
+                            logger.warn("Error reading index metadata for {}: {}", indexName, e.getMessage());
                             is.setUnique(false);
                             is.setIndexType("NORMAL");
                         }
@@ -244,7 +245,7 @@ public class MySqlTableStructureExtractor implements TableStructureExtractor {
             column.setNullable("YES".equalsIgnoreCase(rs.getString("is_nullable")));
             
             // 获取长度/精度/小数位数
-            String dataType = rs.getString("data_type").toLowerCase();
+            String dataType = rs.getString("data_type").toLowerCase(java.util.Locale.ROOT);
             if (dataType.contains("char") || dataType.contains("text") || dataType.contains("binary") || dataType.contains("blob")) {
                 column.setLength(rs.getObject("character_maximum_length") != null ? rs.getInt("character_maximum_length") : null);
             } else if (dataType.contains("int") || dataType.contains("float") || dataType.contains("double") || dataType.contains("decimal")) {
@@ -257,7 +258,7 @@ public class MySqlTableStructureExtractor implements TableStructureExtractor {
             
             // 检查是否自增
             String extra = rs.getString("extra");
-            column.setAutoIncrement(extra != null && extra.toLowerCase().contains("auto_increment"));
+            column.setAutoIncrement(extra != null && extra.toLowerCase(java.util.Locale.ROOT).contains("auto_increment"));
             
             // 存储其他属性
             Map<String, Object> properties = new HashMap<>();

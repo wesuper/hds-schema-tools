@@ -468,7 +468,7 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
         }
         
         // 被忽略的类型使用可接受级别
-        if (isIgnoredType(config, propertyName.toUpperCase())) {
+        if (isIgnoredType(config, propertyName.toUpperCase(java.util.Locale.ROOT))) {
             return DifferenceLevel.ACCEPTABLE;
         }
         
@@ -489,9 +489,11 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
         // 检查源表有但目标表没有的索引
         for (IndexStructure sourceIndex : sourceTable.getIndexes()) {
             // 在Elasticsearch中，每个字段默认都有索引，不需要额外比对，除非配置为显式比对ES索引
-            if (targetTable.getSourceType().equalsIgnoreCase("elasticsearch") && 
-                    !Boolean.TRUE.equals(config.getSourceTable().getProperties().get("compare_es_indexes"))) {
-                continue;
+            if (targetTable.getSourceType().equalsIgnoreCase("elasticsearch")) {
+                Object compareEsIndexes = config.getSourceTable().getProperties().get("compare_es_indexes");
+                if (!Boolean.TRUE.equals(compareEsIndexes)) {
+                    continue;
+                }
             }
             
             boolean found = false;
@@ -528,9 +530,11 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
         // 检查目标表有但源表没有的索引
         for (IndexStructure targetIndex : targetTable.getIndexes()) {
             // 在Elasticsearch中，每个字段默认都有索引，不需要额外比对，除非配置为显式比对ES索引
-            if (sourceTable.getSourceType().equalsIgnoreCase("elasticsearch") && 
-                    !Boolean.TRUE.equals(config.getTargetTable().getProperties().get("compare_es_indexes"))) {
-                continue;
+            if (sourceTable.getSourceType().equalsIgnoreCase("elasticsearch")) {
+                Object compareEsIndexes = config.getTargetTable().getProperties().get("compare_es_indexes");
+                if (!Boolean.TRUE.equals(compareEsIndexes)) {
+                    continue;
+                }
             }
             
             boolean found = false;
