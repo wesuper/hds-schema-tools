@@ -1,4 +1,4 @@
-package org.immortal.hydra.hdstbcomp.config;
+package org.wesuper.jtools.hdscompare.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -15,7 +15,7 @@ import java.util.ArrayList;
  * @version 1.0.0
  */
 @Configuration
-@ConfigurationProperties(prefix = "hydra.heterogeneous-compare")
+@ConfigurationProperties(prefix = "jtools.hdscompare.datasource")
 public class DataSourceConfig {
 
     /**

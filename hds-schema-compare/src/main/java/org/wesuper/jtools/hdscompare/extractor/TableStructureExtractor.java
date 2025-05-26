@@ -1,7 +1,7 @@
-package org.immortal.hydra.hdstbcomp.extractor;
+package org.wesuper.jtools.hdscompare.extractor;
 
-import org.immortal.hydra.hdstbcomp.config.DataSourceConfig;
-import org.immortal.hydra.hdstbcomp.model.TableStructure;
+import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.model.TableStructure;
 
 /**
  * 表结构提取器接口

@@ -1,4 +1,4 @@
-package org.immortal.hydra.hdstbcomp.model;
+package org.wesuper.jtools.hdscompare.model;
 
 import java.util.Map;
 import java.util.HashMap;

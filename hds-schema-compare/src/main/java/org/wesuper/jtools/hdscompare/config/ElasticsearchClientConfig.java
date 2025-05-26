@@ -1,4 +1,4 @@
-package org.immortal.hydra.hdstbcomp.config;
+package org.wesuper.jtools.hdscompare.config;
 
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
@@ -33,7 +33,7 @@ public class ElasticsearchClientConfig {
      * Elasticsearch配置属性
      */
     @Bean
-    @ConfigurationProperties(prefix = "hydra.heterogeneous-compare.elasticsearch")
+    @ConfigurationProperties(prefix = "hds-schema-tools.compare.elasticsearch")
     public ElasticsearchProperties elasticsearchProperties() {
         return new ElasticsearchProperties();
     }

@@ -1,14 +1,13 @@
-package org.immortal.hydra.hdstbcomp.starter;
+package org.wesuper.jtools.hdscompare.starter;
 
-import org.immortal.hydra.hdstbcomp.config.DataSourceConfig;
-import org.immortal.hydra.hdstbcomp.model.CompareResult;
-import org.immortal.hydra.hdstbcomp.service.TableStructureCompareService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.stereotype.Component;
+import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.model.CompareResult;
+import org.wesuper.jtools.hdscompare.service.TableStructureCompareService;
 
 import java.util.List;
 
@@ -19,7 +18,6 @@ import java.util.List;
  * @author vincentruan
  * @version 1.0.0
  */
-@Component
 public class TableStructureCompareAutoStarter implements ApplicationRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(TableStructureCompareAutoStarter.class);

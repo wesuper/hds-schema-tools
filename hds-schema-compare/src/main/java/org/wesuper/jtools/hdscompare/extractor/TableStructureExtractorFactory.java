@@ -1,4 +1,4 @@
-package org.immortal.hydra.hdstbcomp.extractor;
+package org.wesuper.jtools.hdscompare.extractor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +28,6 @@ public class TableStructureExtractorFactory {
      *
      * @param extractors 所有的表结构提取器列表
      */
-    @Autowired
     public TableStructureExtractorFactory(List<TableStructureExtractor> extractors) {
         for (TableStructureExtractor extractor : extractors) {
             String type = extractor.getSupportedType();

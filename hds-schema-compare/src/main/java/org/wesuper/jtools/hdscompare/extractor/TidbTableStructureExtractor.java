@@ -1,12 +1,12 @@
-package org.immortal.hydra.hdstbcomp.extractor;
+package org.wesuper.jtools.hdscompare.extractor;
 
-import org.immortal.hydra.hdstbcomp.config.DataSourceConfig;
-import org.immortal.hydra.hdstbcomp.model.ColumnStructure;
-import org.immortal.hydra.hdstbcomp.model.TableStructure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.model.ColumnStructure;
+import org.wesuper.jtools.hdscompare.model.TableStructure;
 
 import java.util.Map;
 

@@ -1,4 +1,4 @@
-package org.immortal.hydra.hdstbcomp.model;
+package org.wesuper.jtools.hdscompare.model;
 
 import java.util.List;
 import java.util.ArrayList;

@@ -1,14 +1,15 @@
 package org.immortal.hydra.hdstbcomp.extractor;
 
-import org.immortal.hydra.hdstbcomp.config.DataSourceConfig;
-import org.immortal.hydra.hdstbcomp.model.ColumnStructure;
-import org.immortal.hydra.hdstbcomp.model.IndexStructure;
-import org.immortal.hydra.hdstbcomp.model.TableStructure;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
+import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.extractor.MySqlTableStructureExtractor;
+import org.wesuper.jtools.hdscompare.model.ColumnStructure;
+import org.wesuper.jtools.hdscompare.model.IndexStructure;
+import org.wesuper.jtools.hdscompare.model.TableStructure;
 
 import javax.sql.DataSource;
 import java.sql.Connection;

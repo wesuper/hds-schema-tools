@@ -28,8 +28,8 @@
 在application.yml中配置数据源和比对任务：
 
 ```yaml
-hydra:
-  heterogeneous-compare:
+jtools:
+  hdscompare:
     auto-compare-on-startup: true
     verbose-output: true
     compare-configs:

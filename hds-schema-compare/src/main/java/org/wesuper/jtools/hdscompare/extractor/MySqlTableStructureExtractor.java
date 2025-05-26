@@ -1,9 +1,5 @@
-package org.immortal.hydra.hdstbcomp.extractor;
+package org.wesuper.jtools.hdscompare.extractor;
 
-import org.immortal.hydra.hdstbcomp.config.DataSourceConfig;
-import org.immortal.hydra.hdstbcomp.model.ColumnStructure;
-import org.immortal.hydra.hdstbcomp.model.IndexStructure;
-import org.immortal.hydra.hdstbcomp.model.TableStructure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +8,10 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.datasource.lookup.DataSourceLookupFailureException;
 import org.springframework.jdbc.support.JdbcUtils;
 import org.springframework.stereotype.Component;
+import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.model.ColumnStructure;
+import org.wesuper.jtools.hdscompare.model.IndexStructure;
+import org.wesuper.jtools.hdscompare.model.TableStructure;
 import org.springframework.jdbc.core.ConnectionCallback;
 
 import javax.sql.DataSource;
@@ -134,9 +134,9 @@ public class MySqlTableStructureExtractor implements TableStructureExtractor {
         boolean isH2 = isH2Database(jdbcTemplate);
         String sql = isH2 ? H2_COLUMN_DETAILS_SQL : MYSQL_COLUMN_DETAILS_SQL;
         if (isH2) {
-            return jdbcTemplate.query(sql, new Object[]{tableName.toUpperCase()}, getColumnStructureRowMapper(true));
+            return jdbcTemplate.query(sql, getColumnStructureRowMapper(true), tableName.toUpperCase());
         } else {
-            return jdbcTemplate.query(sql, new Object[]{schema, tableName}, getColumnStructureRowMapper(false));
+            return jdbcTemplate.query(sql, getColumnStructureRowMapper(false), schema, tableName);
         }
     }
     

@@ -1,10 +1,9 @@
-package org.immortal.hydra.hdstbcomp.model;
+package org.wesuper.jtools.hdscompare.model;
 
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.Objects;
 
 /**
  * 表结构模型，用于统一描述不同数据源的表结构

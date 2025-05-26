@@ -1,10 +1,10 @@
-package org.immortal.hydra.hdstbcomp.service;
-
-import org.immortal.hydra.hdstbcomp.config.DataSourceConfig;
-import org.immortal.hydra.hdstbcomp.model.CompareResult;
-import org.immortal.hydra.hdstbcomp.model.TableStructure;
+package org.wesuper.jtools.hdscompare.service;
 
 import java.util.List;
+
+import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.model.CompareResult;
+import org.wesuper.jtools.hdscompare.model.TableStructure;
 
 /**
  * 表结构比对服务接口

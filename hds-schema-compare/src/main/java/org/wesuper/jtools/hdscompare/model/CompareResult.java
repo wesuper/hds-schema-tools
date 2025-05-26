@@ -1,4 +1,4 @@
-package org.immortal.hydra.hdstbcomp.model;
+package org.wesuper.jtools.hdscompare.model;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -57,6 +57,18 @@ public class CompareResult {
      * 分类后的差异统计
      */
     private Map<DifferenceLevel, Integer> differenceCountByLevel = new HashMap<>();
+
+    public CompareResult() {
+        this.columnDifferences = new ArrayList<>();
+        this.indexDifferences = new ArrayList<>();
+        this.tableDifferences = new ArrayList<>();
+        this.differenceCountByLevel = new HashMap<>();
+    }
+
+    public CompareResult(String name) {
+        this();
+        this.name = name;
+    }
 
     public String getName() {
         return name;

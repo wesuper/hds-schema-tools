@@ -1,8 +1,5 @@
 package org.immortal.hydra.hdstbcomp.extractor;
 
-import org.immortal.hydra.hdstbcomp.config.DataSourceConfig;
-import org.immortal.hydra.hdstbcomp.model.IndexStructure;
-import org.immortal.hydra.hdstbcomp.model.TableStructure;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,6 +9,10 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.lookup.DataSourceLookupFailureException;
+import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.extractor.MySqlTableStructureExtractor;
+import org.wesuper.jtools.hdscompare.model.IndexStructure;
+import org.wesuper.jtools.hdscompare.model.TableStructure;
 
 import javax.sql.DataSource;
 import java.sql.Connection;

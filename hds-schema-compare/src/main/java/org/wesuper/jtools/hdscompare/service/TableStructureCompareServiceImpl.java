@@ -1,22 +1,22 @@
-package org.immortal.hydra.hdstbcomp.service;
+package org.wesuper.jtools.hdscompare.service;
 
-import org.immortal.hydra.hdstbcomp.config.DataSourceConfig;
-import org.immortal.hydra.hdstbcomp.extractor.TableStructureExtractor;
-import org.immortal.hydra.hdstbcomp.extractor.TableStructureExtractorFactory;
-import org.immortal.hydra.hdstbcomp.model.ColumnStructure;
-import org.immortal.hydra.hdstbcomp.model.CompareResult;
-import org.immortal.hydra.hdstbcomp.model.CompareResult.ColumnDifference;
-import org.immortal.hydra.hdstbcomp.model.CompareResult.DifferenceLevel;
-import org.immortal.hydra.hdstbcomp.model.CompareResult.DifferenceType;
-import org.immortal.hydra.hdstbcomp.model.CompareResult.IndexDifference;
-import org.immortal.hydra.hdstbcomp.model.CompareResult.TableDifference;
-import org.immortal.hydra.hdstbcomp.model.IndexStructure;
-import org.immortal.hydra.hdstbcomp.model.TableStructure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.extractor.TableStructureExtractor;
+import org.wesuper.jtools.hdscompare.extractor.TableStructureExtractorFactory;
+import org.wesuper.jtools.hdscompare.model.ColumnStructure;
+import org.wesuper.jtools.hdscompare.model.CompareResult;
+import org.wesuper.jtools.hdscompare.model.IndexStructure;
+import org.wesuper.jtools.hdscompare.model.TableStructure;
+import org.wesuper.jtools.hdscompare.model.CompareResult.ColumnDifference;
+import org.wesuper.jtools.hdscompare.model.CompareResult.DifferenceLevel;
+import org.wesuper.jtools.hdscompare.model.CompareResult.DifferenceType;
+import org.wesuper.jtools.hdscompare.model.CompareResult.IndexDifference;
+import org.wesuper.jtools.hdscompare.model.CompareResult.TableDifference;
 
 import java.util.ArrayList;
 import java.util.Arrays;

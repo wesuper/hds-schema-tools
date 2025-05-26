@@ -1,12 +1,5 @@
 package org.immortal.hydra.hdstbcomp.service;
 
-import org.immortal.hydra.hdstbcomp.config.DataSourceConfig;
-import org.immortal.hydra.hdstbcomp.extractor.MySqlTableStructureExtractor;
-import org.immortal.hydra.hdstbcomp.extractor.TableStructureExtractor;
-import org.immortal.hydra.hdstbcomp.extractor.TableStructureExtractorFactory;
-import org.immortal.hydra.hdstbcomp.model.ColumnStructure;
-import org.immortal.hydra.hdstbcomp.model.CompareResult;
-import org.immortal.hydra.hdstbcomp.model.TableStructure;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +9,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
+import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.extractor.MySqlTableStructureExtractor;
+import org.wesuper.jtools.hdscompare.extractor.TableStructureExtractor;
+import org.wesuper.jtools.hdscompare.extractor.TableStructureExtractorFactory;
+import org.wesuper.jtools.hdscompare.model.ColumnStructure;
+import org.wesuper.jtools.hdscompare.model.CompareResult;
+import org.wesuper.jtools.hdscompare.model.TableStructure;
+import org.wesuper.jtools.hdscompare.service.TableStructureCompareServiceImpl;
 
 import javax.sql.DataSource;
 import java.util.ArrayList;
