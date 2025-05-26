@@ -7,12 +7,12 @@ import org.immortal.hydra.hdstbcomp.extractor.TableStructureExtractorFactory;
 import org.immortal.hydra.hdstbcomp.model.ColumnStructure;
 import org.immortal.hydra.hdstbcomp.model.CompareResult;
 import org.immortal.hydra.hdstbcomp.model.TableStructure;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
@@ -23,13 +23,13 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
 /**
  * 表结构比对服务单元测试
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class TableStructureCompareServiceTest {
 
     @InjectMocks
@@ -46,7 +46,7 @@ public class TableStructureCompareServiceTest {
     private TableStructureExtractor mysqlExtractor;
     private TableStructureExtractor tidbExtractor;
 
-    @Before
+    @BeforeEach
     public void setup() {
         // 创建H2嵌入式数据库
         h2Database = new EmbeddedDatabaseBuilder()
@@ -101,15 +101,16 @@ public class TableStructureCompareServiceTest {
 
         // 验证结果
         assertNotNull(result);
-        assertTrue("比对结果应该包含列差异", result.getColumnDifferences().size() > 0);
+        assertTrue(result.getColumnDifferences().size() > 0, "比对结果应该包含列差异");
         
         // 验证被忽略的字段没有出现在差异列表中
         result.getColumnDifferences().forEach(diff -> {
-            assertFalse("被忽略的字段不应该出现在差异中", "create_time".equals(diff.getColumnName()) || "update_time".equals(diff.getColumnName()));
+            assertFalse("create_time".equals(diff.getColumnName()) || "update_time".equals(diff.getColumnName()), 
+                "被忽略的字段不应该出现在差异中");
         });
 
         // 验证索引差异被忽略
-        assertEquals("索引差异应该被忽略", 0, result.getIndexDifferences().size());
+        assertEquals(0, result.getIndexDifferences().size(), "索引差异应该被忽略");
     }
     
     @Test
@@ -141,8 +142,8 @@ public class TableStructureCompareServiceTest {
 
         // 验证结果
         assertNotNull(result);
-        assertTrue("应该检测到列差异", result.getColumnDifferences().size() > 0);
-        assertTrue("应该检测到索引差异", result.getIndexDifferences().size() > 0);
+        assertTrue(result.getColumnDifferences().size() > 0, "应该检测到列差异");
+        assertTrue(result.getIndexDifferences().size() > 0, "应该检测到索引差异");
         
         // 验证时间字段的差异被检测到
         boolean foundTimeDifference = false;
@@ -152,7 +153,7 @@ public class TableStructureCompareServiceTest {
                 break;
             }
         }
-        assertTrue("应该检测到时间字段的差异", foundTimeDifference);
+        assertTrue(foundTimeDifference, "应该检测到时间字段的差异");
     }
 
     @Test
@@ -209,7 +210,7 @@ public class TableStructureCompareServiceTest {
             }
         }
         
-        assertFalse("MySQL的AUTO_INCREMENT和TiDB的AUTO_RANDOM不应该被视为差异", autoIncrementDiffFound);
+        assertFalse(autoIncrementDiffFound, "MySQL的AUTO_INCREMENT和TiDB的AUTO_RANDOM不应该被视为差异");
     }
 
     @Test
@@ -255,8 +256,8 @@ public class TableStructureCompareServiceTest {
             }
         }
         
-        assertFalse("长度差异应该被忽略", lengthDiffFound);
-        assertFalse("精度差异应该被忽略", precisionDiffFound);
+        assertFalse(lengthDiffFound, "长度差异应该被忽略");
+        assertFalse(precisionDiffFound, "精度差异应该被忽略");
         
         // 重新执行比对，这次不忽略任何类型
         compareConfig.setIgnoreTypes(new ArrayList<>());
@@ -272,7 +273,7 @@ public class TableStructureCompareServiceTest {
             }
         }
         
-        assertTrue("未忽略时应该检测到列的长度或精度差异", foundDiff);
+        assertTrue(foundDiff, "未忽略时应该检测到列的长度或精度差异");
     }
 
     /**

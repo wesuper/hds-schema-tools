@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.datasource.lookup.DataSourceLookupFailureException;
 import org.springframework.jdbc.support.JdbcUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.jdbc.core.ConnectionCallback;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -40,18 +41,23 @@ public class MySqlTableStructureExtractor implements TableStructureExtractor {
      * 获取表注释的SQL
      */
     private static final String TABLE_COMMENT_SQL = 
-            "SELECT table_comment FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
+            "SELECT remarks FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
     
     /**
      * 获取列详细信息的SQL
      */
-    private static final String COLUMN_DETAILS_SQL = 
-            "SELECT column_name, data_type, column_type, column_default, is_nullable, " +
-                   "character_maximum_length, numeric_precision, numeric_scale, " +
-                   "column_comment, ordinal_position, extra " +
-            "FROM information_schema.columns " +
-            "WHERE table_schema = ? AND table_name = ? " +
-            "ORDER BY ordinal_position";
+    private static final String MYSQL_COLUMN_DETAILS_SQL = 
+        "SELECT column_name, data_type, column_type, column_default, is_nullable, " +
+        "character_maximum_length, numeric_precision, numeric_scale, column_comment, ordinal_position, extra " +
+        "FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position";
+            
+    /**
+     * 获取列详细信息的SQL (H2)
+     */
+    private static final String H2_COLUMN_DETAILS_SQL = 
+        "SELECT column_name, data_type, column_default, is_nullable, " +
+        "character_maximum_length, numeric_precision, numeric_scale, remarks as column_comment, ordinal_position " +
+        "FROM information_schema.columns WHERE table_name = ? ORDER BY ordinal_position";
     
     @Autowired
     private Map<String, DataSource> dataSourceMap;
@@ -125,7 +131,103 @@ public class MySqlTableStructureExtractor implements TableStructureExtractor {
      * @return 列结构列表
      */
     private List<ColumnStructure> getColumnStructures(JdbcTemplate jdbcTemplate, String schema, String tableName) {
-        return jdbcTemplate.query(COLUMN_DETAILS_SQL, new Object[]{schema, tableName}, getColumnStructureRowMapper());
+        boolean isH2 = isH2Database(jdbcTemplate);
+        String sql = isH2 ? H2_COLUMN_DETAILS_SQL : MYSQL_COLUMN_DETAILS_SQL;
+        if (isH2) {
+            return jdbcTemplate.query(sql, new Object[]{tableName.toUpperCase()}, getColumnStructureRowMapper(true));
+        } else {
+            return jdbcTemplate.query(sql, new Object[]{schema, tableName}, getColumnStructureRowMapper(false));
+        }
+    }
+    
+    /**
+     * 判断是否为H2数据库
+     */
+    private boolean isH2Database(JdbcTemplate jdbcTemplate) {
+        try {
+            // 使用DatabaseMetaData来判断数据库类型
+            return jdbcTemplate.execute((ConnectionCallback<Boolean>) connection -> {
+                DatabaseMetaData metaData = connection.getMetaData();
+                String databaseProductName = metaData.getDatabaseProductName();
+                return databaseProductName != null && 
+                       databaseProductName.toLowerCase().contains("h2");
+            });
+        } catch (Exception e) {
+            logger.warn("Failed to determine database type: {}", e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * 创建列结构行映射器
+     * 
+     * @param isH2 是否为H2数据库
+     * @return 列结构行映射器
+     */
+    private RowMapper<ColumnStructure> getColumnStructureRowMapper(boolean isH2) {
+        return (rs, rowNum) -> {
+            ColumnStructure column = new ColumnStructure();
+            column.setColumnName(rs.getString("column_name"));
+            column.setDataType(rs.getString("data_type"));
+            if (isH2) {
+                String dataType = rs.getString("data_type").toLowerCase(java.util.Locale.ROOT);
+                String columnType = dataType;
+                if (dataType.contains("char") || dataType.contains("text") || dataType.contains("binary") || dataType.contains("blob")) {
+                    Integer length = rs.getObject("character_maximum_length") != null ? rs.getInt("character_maximum_length") : null;
+                    if (length != null) {
+                        columnType += "(" + length + ")";
+                    }
+                } else if (dataType.contains("int") || dataType.contains("float") || dataType.contains("double") || dataType.contains("decimal")) {
+                    Integer precision = rs.getObject("numeric_precision") != null ? rs.getInt("numeric_precision") : null;
+                    Integer scale = rs.getObject("numeric_scale") != null ? rs.getInt("numeric_scale") : null;
+                    if (precision != null) {
+                        columnType += "(" + precision;
+                        if (scale != null) {
+                            columnType += "," + scale;
+                        }
+                        columnType += ")";
+                    }
+                }
+                column.setColumnType(columnType);
+            } else {
+                column.setColumnType(rs.getString("column_type"));
+            }
+            column.setDefaultValue(rs.getString("column_default"));
+            column.setNullable("YES".equalsIgnoreCase(rs.getString("is_nullable")));
+            String dataType = rs.getString("data_type").toLowerCase(java.util.Locale.ROOT);
+            if (dataType.contains("char") || dataType.contains("text") || dataType.contains("binary") || dataType.contains("blob")) {
+                column.setLength(rs.getObject("character_maximum_length") != null ? rs.getInt("character_maximum_length") : null);
+            } else if (dataType.contains("int") || dataType.contains("float") || dataType.contains("double") || dataType.contains("decimal")) {
+                column.setPrecision(rs.getObject("numeric_precision") != null ? rs.getInt("numeric_precision") : null);
+                column.setScale(rs.getObject("numeric_scale") != null ? rs.getInt("numeric_scale") : null);
+            }
+            column.setComment(rs.getString("column_comment"));
+            column.setOrdinalPosition(rs.getInt("ordinal_position"));
+            if (isH2) {
+                boolean autoIncrement = false;
+                try {
+                    String dataTypeLocal = rs.getString("data_type");
+                    if (dataTypeLocal != null) {
+                        String type = dataTypeLocal.toUpperCase();
+                        if (type.contains("IDENTITY") || type.contains("AUTO_INCREMENT")) {
+                            autoIncrement = true;
+                        }
+                    }
+                } catch (Exception ignore) {
+                    // H2没有该字段，默认false
+                }
+                column.setAutoIncrement(autoIncrement);
+            } else {
+                String extra = rs.getString("extra");
+                column.setAutoIncrement(extra != null && extra.toLowerCase(java.util.Locale.ROOT).contains("auto_increment"));
+            }
+            Map<String, Object> properties = new HashMap<>();
+            if (!isH2) {
+                properties.put("extra", rs.getString("extra"));
+            }
+            column.setProperties(properties);
+            return column;
+        };
     }
     
     /**
@@ -139,16 +241,20 @@ public class MySqlTableStructureExtractor implements TableStructureExtractor {
      */
     private List<IndexStructure> getIndexStructures(DataSource dataSource, String catalog, String tableName) throws SQLException {
         Map<String, IndexStructure> indexMap = new HashMap<>();
+        boolean isH2 = false;
         
         try (Connection conn = dataSource.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
+            String databaseProductName = metaData.getDatabaseProductName();
+            isH2 = databaseProductName != null && databaseProductName.toLowerCase().contains("h2");
+            String actualTableName = isH2 ? tableName.toUpperCase() : tableName;
             
             // 获取索引信息
-            try (ResultSet rs = metaData.getIndexInfo(catalog, null, tableName, false, true)) {
+            try (ResultSet rs = metaData.getIndexInfo(catalog, null, actualTableName, false, true)) {
                 while (rs.next()) {
                     String indexName = rs.getString("INDEX_NAME");
                     
-                    // PRIMARY是MySQL中主键的名称
+                    // 跳过统计信息
                     if (indexName == null) {
                         continue;
                     }
@@ -174,7 +280,7 @@ public class MySqlTableStructureExtractor implements TableStructureExtractor {
                     String columnName = rs.getString("COLUMN_NAME");
                     if (columnName != null) {
                         IndexStructure.IndexColumnStructure columnStructure = new IndexStructure.IndexColumnStructure();
-                        columnStructure.setColumnName(columnName);
+                        columnStructure.setColumnName(columnName.toLowerCase());
                         columnStructure.setPosition(rs.getShort("ORDINAL_POSITION"));
                         columnStructure.setSort(rs.getString("ASC_OR_DESC"));
                         indexStructure.getColumns().add(columnStructure);
@@ -183,37 +289,34 @@ public class MySqlTableStructureExtractor implements TableStructureExtractor {
             }
             
             // 获取主键信息
-            try (ResultSet rs = metaData.getPrimaryKeys(catalog, null, tableName)) {
+            try (ResultSet rs = metaData.getPrimaryKeys(catalog, null, actualTableName)) {
+                List<String> pkColumns = new ArrayList<>();
                 while (rs.next()) {
-                    String pkName = rs.getString("PK_NAME");
                     String columnName = rs.getString("COLUMN_NAME");
-                    
-                    if (pkName != null && columnName != null) {
-                        // 确保主键索引存在
-                        IndexStructure pkIndexStructure = indexMap.computeIfAbsent(pkName, k -> {
-                            IndexStructure is = new IndexStructure();
-                            is.setIndexName(pkName);
-                            is.setPrimary(true);
-                            is.setUnique(true);
-                            is.setIndexType("PRIMARY KEY");
-                            return is;
-                        });
-                        
-                        // 检查是否已添加此列
-                        boolean columnExists = pkIndexStructure.getColumns().stream()
-                                .anyMatch(col -> columnName.equals(col.getColumnName()));
-                        
-                        if (!columnExists) {
-                            IndexStructure.IndexColumnStructure columnStructure = new IndexStructure.IndexColumnStructure();
-                            columnStructure.setColumnName(columnName);
-                            columnStructure.setPosition(rs.getShort("KEY_SEQ"));
-                            pkIndexStructure.getColumns().add(columnStructure);
-                        }
+                    if (columnName != null) {
+                        pkColumns.add(columnName);
                     }
+                }
+                // 如果存在主键列，强制创建主键索引（不管indexMap里有没有"PRIMARY"）
+                if (!pkColumns.isEmpty()) {
+                    IndexStructure pkIndexStructure = new IndexStructure();
+                    pkIndexStructure.setIndexName("PRIMARY");
+                    pkIndexStructure.setPrimary(true);
+                    pkIndexStructure.setUnique(true);
+                    pkIndexStructure.setIndexType("PRIMARY KEY");
+                    for (int i = 0; i < pkColumns.size(); i++) {
+                        IndexStructure.IndexColumnStructure columnStructure = new IndexStructure.IndexColumnStructure();
+                        columnStructure.setColumnName(pkColumns.get(i).toLowerCase());
+                        columnStructure.setPosition((short) (i + 1));
+                        pkIndexStructure.getColumns().add(columnStructure);
+                    }
+                    // 直接put，覆盖任何同名索引
+                    indexMap.put("PRIMARY", pkIndexStructure);
                 }
             }
         }
-        
+        // 调试输出所有索引
+        logger.debug("DEBUG: indexMap = {}", indexMap);
         return new ArrayList<>(indexMap.values());
     }
     
@@ -228,45 +331,6 @@ public class MySqlTableStructureExtractor implements TableStructureExtractor {
         try (Connection conn = dataSource.getConnection()) {
             return conn.getCatalog();
         }
-    }
-    
-    /**
-     * 创建列结构行映射器
-     * 
-     * @return 列结构行映射器
-     */
-    private RowMapper<ColumnStructure> getColumnStructureRowMapper() {
-        return (rs, rowNum) -> {
-            ColumnStructure column = new ColumnStructure();
-            column.setColumnName(rs.getString("column_name"));
-            column.setDataType(rs.getString("data_type"));
-            column.setColumnType(rs.getString("column_type"));
-            column.setDefaultValue(rs.getString("column_default"));
-            column.setNullable("YES".equalsIgnoreCase(rs.getString("is_nullable")));
-            
-            // 获取长度/精度/小数位数
-            String dataType = rs.getString("data_type").toLowerCase(java.util.Locale.ROOT);
-            if (dataType.contains("char") || dataType.contains("text") || dataType.contains("binary") || dataType.contains("blob")) {
-                column.setLength(rs.getObject("character_maximum_length") != null ? rs.getInt("character_maximum_length") : null);
-            } else if (dataType.contains("int") || dataType.contains("float") || dataType.contains("double") || dataType.contains("decimal")) {
-                column.setPrecision(rs.getObject("numeric_precision") != null ? rs.getInt("numeric_precision") : null);
-                column.setScale(rs.getObject("numeric_scale") != null ? rs.getInt("numeric_scale") : null);
-            }
-            
-            column.setComment(rs.getString("column_comment"));
-            column.setOrdinalPosition(rs.getInt("ordinal_position"));
-            
-            // 检查是否自增
-            String extra = rs.getString("extra");
-            column.setAutoIncrement(extra != null && extra.toLowerCase(java.util.Locale.ROOT).contains("auto_increment"));
-            
-            // 存储其他属性
-            Map<String, Object> properties = new HashMap<>();
-            properties.put("extra", extra);
-            column.setProperties(properties);
-            
-            return column;
-        };
     }
     
     /**

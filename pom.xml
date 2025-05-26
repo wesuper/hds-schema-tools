@@ -62,9 +62,6 @@
                     <source>${java.version}</source>
                     <target>${java.version}</target>
                     <encoding>UTF-8</encoding>
-                    <compilerArgs>
-                        <arg>-Dfile.encoding=UTF-8</arg>
-                    </compilerArgs>
                 </configuration>
             </plugin>
             

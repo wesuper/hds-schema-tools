@@ -8,12 +8,14 @@ CREATE TABLE IF NOT EXISTS mysql_table (
     data_type VARCHAR(50),
     create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE INDEX uk_name (name),
-    INDEX idx_status (status)
+    PRIMARY KEY (id)
 );
 
--- 注释
+-- 创建索引
+CREATE UNIQUE INDEX mysql_table_uk_name ON mysql_table (name);
+CREATE INDEX mysql_table_idx_status ON mysql_table (status);
+
+-- 注释 (H2使用COMMENT ON语句)
 COMMENT ON TABLE mysql_table IS '模拟MySQL表';
 COMMENT ON COLUMN mysql_table.id IS '自增主键';
 COMMENT ON COLUMN mysql_table.name IS '名称';
@@ -35,10 +37,12 @@ CREATE TABLE IF NOT EXISTS tidb_table (
     create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
     update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     extra_column VARCHAR(100), -- 额外列
-    PRIMARY KEY (id),
-    UNIQUE INDEX uk_name (name),
-    INDEX idx_status_type (status, data_type) -- 索引定义不同
+    PRIMARY KEY (id)
 );
+
+-- 创建索引
+CREATE UNIQUE INDEX tidb_table_uk_name ON tidb_table (name);
+CREATE INDEX tidb_table_idx_status_type ON tidb_table (status, data_type);
 
 -- 注释
 COMMENT ON TABLE tidb_table IS '模拟TiDB表';
