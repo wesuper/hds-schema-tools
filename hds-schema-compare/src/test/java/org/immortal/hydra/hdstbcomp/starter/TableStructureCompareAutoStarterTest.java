@@ -6,7 +6,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.boot.ApplicationArguments;
-import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
 import org.wesuper.jtools.hdscompare.model.CompareResult;
 import org.wesuper.jtools.hdscompare.service.TableStructureCompareService;
 import org.wesuper.jtools.hdscompare.starter.TableStructureCompareAutoStarter;
@@ -19,7 +19,7 @@ import static org.mockito.Mockito.*;
 class TableStructureCompareAutoStarterTest {
 
     @Mock
-    private DataSourceConfig dataSourceConfig;
+    private DataSourceCompareConfig dataSourceConfig;
 
     @Mock
     private TableStructureCompareService compareService;

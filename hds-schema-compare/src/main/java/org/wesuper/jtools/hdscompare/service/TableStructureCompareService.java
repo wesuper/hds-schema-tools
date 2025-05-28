@@ -2,7 +2,7 @@ package org.wesuper.jtools.hdscompare.service;
 
 import java.util.List;
 
-import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
 import org.wesuper.jtools.hdscompare.model.CompareResult;
 import org.wesuper.jtools.hdscompare.model.TableStructure;
 
@@ -15,37 +15,38 @@ import org.wesuper.jtools.hdscompare.model.TableStructure;
 public interface TableStructureCompareService {
 
     /**
-     * 比对两个表结构之间的差异
+     * 比对两个表的结构
      *
      * @param sourceTable 源表结构
      * @param targetTable 目标表结构
-     * @param config 比对配置项
+     * @param config      比对配置
      * @return 比对结果
      */
     CompareResult compareTableStructures(TableStructure sourceTable, TableStructure targetTable, 
-                                        DataSourceConfig.CompareConfig config);
+                                        DataSourceCompareConfig.CompareConfig config);
     
     /**
-     * 根据配置自动执行所有表结构比对
+     * 比对所有配置的表
      * 
-     * @return 所有表比对结果列表
+     * @return 比对结果列表
      */
     List<CompareResult> compareAllConfiguredTables();
     
     /**
-     * 根据名称执行特定表结构比对
+     * 根据配置名称比对表
      *
-     * @param name 配置中的比对任务名称
-     * @return 比对结果，如果未找到配置则返回null
+     * @param name 配置名称
+     * @return 比对结果
      */
     CompareResult compareTablesByName(String name);
     
     /**
      * 获取表结构
      *
-     * @param tableConfig 表配置
+     * @param dataSourceConfig 数据源配置
+     * @param tableName        表名
      * @return 表结构
-     * @throws Exception 获取失败时抛出异常
+     * @throws Exception 获取表结构时可能抛出的异常
      */
-    TableStructure getTableStructure(DataSourceConfig.TableConfig tableConfig) throws Exception;
+    TableStructure getTableStructure(DataSourceCompareConfig.DataSourceConfig dataSourceConfig, String tableName) throws Exception;
 } 

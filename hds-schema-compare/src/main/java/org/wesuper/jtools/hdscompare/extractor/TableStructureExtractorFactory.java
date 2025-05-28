@@ -2,8 +2,6 @@ package org.wesuper.jtools.hdscompare.extractor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.List;
@@ -16,7 +14,6 @@ import java.util.ArrayList;
  * @author vincentruan
  * @version 1.0.0
  */
-@Component
 public class TableStructureExtractorFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(TableStructureExtractorFactory.class);

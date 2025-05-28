@@ -8,4 +8,4 @@ public class SchemaCompareExampleApplication {
     public static void main(String[] args) {
         SpringApplication.run(SchemaCompareExampleApplication.class, args);
     }
-} 
+}

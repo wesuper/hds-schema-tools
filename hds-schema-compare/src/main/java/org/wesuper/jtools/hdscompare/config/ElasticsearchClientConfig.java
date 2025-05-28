@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.wesuper.jtools.hdscompare.extractor.ElasticsearchTableStructureExtractor;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,7 +25,7 @@ import java.util.Map;
  * @version 1.0.0
  */
 @Configuration
-@ConditionalOnProperty(prefix = "hydra.heterogeneous-compare.elasticsearch", name = "enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(prefix = "jtools.hdscompare.elasticsearch", name = "enabled", havingValue = "true", matchIfMissing = false)
 public class ElasticsearchClientConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchClientConfig.class);
@@ -33,7 +34,7 @@ public class ElasticsearchClientConfig {
      * Elasticsearch配置属性
      */
     @Bean
-    @ConfigurationProperties(prefix = "hds-schema-tools.compare.elasticsearch")
+    @ConfigurationProperties(prefix = "jtools.hdscompare.elasticsearch.props")
     public ElasticsearchProperties elasticsearchProperties() {
         return new ElasticsearchProperties();
     }
@@ -55,7 +56,7 @@ public class ElasticsearchClientConfig {
                     clientMap.put(name, client);
                     logger.info("Created Elasticsearch client: {} with hosts: {}", name, config.getHosts());
                 } catch (Exception e) {
-                    logger.error("Failed to create Elasticsearch client {}: {}", name, e.getMessage(), e);
+                    logger.error("Failed to create Elasticsearch client {}", name, e);
                 }
             });
         }
@@ -84,6 +85,11 @@ public class ElasticsearchClientConfig {
         );
     }
     
+    @Bean
+    public ElasticsearchTableStructureExtractor elasticsearchTableStructureExtractor() {
+        return new ElasticsearchTableStructureExtractor(elasticsearchClientMap(elasticsearchProperties()));
+    }
+
     /**
      * Elasticsearch配置属性类
      */

@@ -9,9 +9,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
 import org.wesuper.jtools.hdscompare.model.ColumnStructure;
 import org.wesuper.jtools.hdscompare.model.IndexStructure;
 import org.wesuper.jtools.hdscompare.model.TableStructure;
@@ -27,20 +25,23 @@ import java.util.Map;
  * @author vincentruan
  * @version 1.0.0
  */
-@Component
 public class ElasticsearchTableStructureExtractor implements TableStructureExtractor {
 
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchTableStructureExtractor.class);
     
     private static final String TYPE = "elasticsearch";
     
-    @Autowired
-    private Map<String, RestHighLevelClient> elasticsearchClientMap;
+    private final Map<String, RestHighLevelClient> elasticsearchClientMap;
+    
+    // @Autowired
+    public ElasticsearchTableStructureExtractor(Map<String, RestHighLevelClient> elasticsearchClientMap) {
+        this.elasticsearchClientMap = elasticsearchClientMap;
+    }
     
     @Override
-    public TableStructure extractTableStructure(DataSourceConfig.TableConfig tableConfig) throws Exception {
-        String dataSourceName = tableConfig.getDataSourceName();
-        String indexName = tableConfig.getTableName();
+    public TableStructure extractTableStructure(DataSourceCompareConfig.DataSourceConfig dataSourceConfig, String tableName) throws Exception {
+        String dataSourceName = dataSourceConfig.getDataSourceName();
+        String indexName = tableName;
         
         logger.info("Extracting structure for Elasticsearch index: {} from datasource: {}", indexName, dataSourceName);
         
@@ -83,7 +84,7 @@ public class ElasticsearchTableStructureExtractor implements TableStructureExtra
             
             return tableStructure;
         } catch (Exception e) {
-            logger.error("Failed to extract Elasticsearch index structure for {}: {}", indexName, e.getMessage(), e);
+            logger.error("Failed to extract Elasticsearch index structure for {}", indexName, e);
             throw e;
         }
     }
@@ -148,7 +149,7 @@ public class ElasticsearchTableStructureExtractor implements TableStructureExtra
             extractIndexInformation(tableStructure, mappingMap);
             
         } catch (Exception e) {
-            logger.error("Error extracting Elasticsearch mapping metadata: {}", e.getMessage(), e);
+            logger.error("Error extracting Elasticsearch mapping metadata", e);
         }
     }
     

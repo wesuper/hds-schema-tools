@@ -15,8 +15,8 @@ import java.util.ArrayList;
  * @version 1.0.0
  */
 @Configuration
-@ConfigurationProperties(prefix = "jtools.hdscompare.datasource")
-public class DataSourceConfig {
+@ConfigurationProperties(prefix = "jtools.hdscompare.config")
+public class DataSourceCompareConfig {
 
     /**
      * 表结构比对配置
@@ -67,24 +67,19 @@ public class DataSourceConfig {
         private String name;
         
         /**
-         * 源表配置
+         * 源数据源配置
          */
-        private TableConfig sourceTable;
+        private DataSourceConfig sourceDataSource;
         
         /**
-         * 目标表配置
+         * 目标数据源配置
          */
-        private TableConfig targetTable;
+        private DataSourceConfig targetDataSource;
         
         /**
-         * 忽略的字段列表
+         * 表比对配置列表
          */
-        private List<String> ignoreFields = new ArrayList<>();
-        
-        /**
-         * 忽略的比对类型，如 INDEX、COMMENT 等
-         */
-        private List<String> ignoreTypes = new ArrayList<>();
+        private List<TableCompareConfig> tableConfigs = new ArrayList<>();
 
         public String getName() {
             return name;
@@ -94,43 +89,35 @@ public class DataSourceConfig {
             this.name = name;
         }
 
-        public TableConfig getSourceTable() {
-            return sourceTable;
+        public DataSourceConfig getSourceDataSource() {
+            return sourceDataSource;
         }
 
-        public void setSourceTable(TableConfig sourceTable) {
-            this.sourceTable = sourceTable;
+        public void setSourceDataSource(DataSourceConfig sourceDataSource) {
+            this.sourceDataSource = sourceDataSource;
         }
 
-        public TableConfig getTargetTable() {
-            return targetTable;
+        public DataSourceConfig getTargetDataSource() {
+            return targetDataSource;
         }
 
-        public void setTargetTable(TableConfig targetTable) {
-            this.targetTable = targetTable;
+        public void setTargetDataSource(DataSourceConfig targetDataSource) {
+            this.targetDataSource = targetDataSource;
         }
 
-        public List<String> getIgnoreFields() {
-            return ignoreFields;
+        public List<TableCompareConfig> getTableConfigs() {
+            return tableConfigs;
         }
 
-        public void setIgnoreFields(List<String> ignoreFields) {
-            this.ignoreFields = ignoreFields;
-        }
-
-        public List<String> getIgnoreTypes() {
-            return ignoreTypes;
-        }
-
-        public void setIgnoreTypes(List<String> ignoreTypes) {
-            this.ignoreTypes = ignoreTypes;
+        public void setTableConfigs(List<TableCompareConfig> tableConfigs) {
+            this.tableConfigs = tableConfigs;
         }
     }
 
     /**
-     * 表配置
+     * 数据源配置
      */
-    public static class TableConfig {
+    public static class DataSourceConfig {
         /**
          * 数据源类型: mysql, tidb, elasticsearch等
          */
@@ -140,11 +127,6 @@ public class DataSourceConfig {
          * 数据源名称，要与Spring中配置的数据源名称一致
          */
         private String dataSourceName;
-        
-        /**
-         * 表名或索引名
-         */
-        private String tableName;
         
         /**
          * 扩展属性，用于不同数据源类型的特殊配置
@@ -167,20 +149,69 @@ public class DataSourceConfig {
             this.dataSourceName = dataSourceName;
         }
 
-        public String getTableName() {
-            return tableName;
-        }
-
-        public void setTableName(String tableName) {
-            this.tableName = tableName;
-        }
-
         public Map<String, String> getProperties() {
             return properties;
         }
 
         public void setProperties(Map<String, String> properties) {
             this.properties = properties;
+        }
+    }
+
+    /**
+     * 表比对配置
+     */
+    public static class TableCompareConfig {
+        /**
+         * 源表名
+         */
+        private String sourceTableName;
+        
+        /**
+         * 目标表名
+         */
+        private String targetTableName;
+        
+        /**
+         * 忽略的字段列表
+         */
+        private List<String> ignoreFields = new ArrayList<>();
+        
+        /**
+         * 忽略的比对类型，如 INDEX、COMMENT 等
+         */
+        private List<String> ignoreTypes = new ArrayList<>();
+
+        public String getSourceTableName() {
+            return sourceTableName;
+        }
+
+        public void setSourceTableName(String sourceTableName) {
+            this.sourceTableName = sourceTableName;
+        }
+
+        public String getTargetTableName() {
+            return targetTableName;
+        }
+
+        public void setTargetTableName(String targetTableName) {
+            this.targetTableName = targetTableName;
+        }
+
+        public List<String> getIgnoreFields() {
+            return ignoreFields;
+        }
+
+        public void setIgnoreFields(List<String> ignoreFields) {
+            this.ignoreFields = ignoreFields;
+        }
+
+        public List<String> getIgnoreTypes() {
+            return ignoreTypes;
+        }
+
+        public void setIgnoreTypes(List<String> ignoreTypes) {
+            this.ignoreTypes = ignoreTypes;
         }
     }
 } 

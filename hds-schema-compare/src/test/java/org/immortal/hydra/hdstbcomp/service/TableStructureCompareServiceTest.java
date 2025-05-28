@@ -9,7 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
-import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
 import org.wesuper.jtools.hdscompare.extractor.MySqlTableStructureExtractor;
 import org.wesuper.jtools.hdscompare.extractor.TableStructureExtractor;
 import org.wesuper.jtools.hdscompare.extractor.TableStructureExtractorFactory;
@@ -21,6 +21,7 @@ import org.wesuper.jtools.hdscompare.service.TableStructureCompareServiceImpl;
 import javax.sql.DataSource;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -40,7 +41,7 @@ public class TableStructureCompareServiceTest {
     private TableStructureExtractorFactory extractorFactory;
 
     @Mock
-    private DataSourceConfig dataSourceConfig;
+    private DataSourceCompareConfig dataSourceConfig;
 
     private EmbeddedDatabase h2Database;
     private Map<String, DataSource> dataSourceMap;
@@ -76,26 +77,28 @@ public class TableStructureCompareServiceTest {
     @Test
     public void testCompareTableStructures_WithIgnoredFields() throws Exception {
         // 准备测试数据 - 源表配置
-        DataSourceConfig.TableConfig sourceTableConfig = new DataSourceConfig.TableConfig();
-        sourceTableConfig.setType("mysql");
-        sourceTableConfig.setDataSourceName("mysqlDataSource");
-        sourceTableConfig.setTableName("mysql_table");
+        DataSourceCompareConfig.DataSourceConfig sourceConfig = new DataSourceCompareConfig.DataSourceConfig();
+        sourceConfig.setType("mysql");
+        sourceConfig.setDataSourceName("mysqlDataSource");
 
         // 准备测试数据 - 目标表配置
-        DataSourceConfig.TableConfig targetTableConfig = new DataSourceConfig.TableConfig();
-        targetTableConfig.setType("tidb");
-        targetTableConfig.setDataSourceName("tidbDataSource");
-        targetTableConfig.setTableName("tidb_table");
+        DataSourceCompareConfig.DataSourceConfig targetConfig = new DataSourceCompareConfig.DataSourceConfig();
+        targetConfig.setType("tidb");
+        targetConfig.setDataSourceName("tidbDataSource");
 
         // 获取表结构
-        TableStructure sourceTable = compareService.getTableStructure(sourceTableConfig);
-        TableStructure targetTable = compareService.getTableStructure(targetTableConfig);
+        TableStructure sourceTable = compareService.getTableStructure(sourceConfig, "mysql_table");
+        TableStructure targetTable = compareService.getTableStructure(targetConfig, "tidb_table");
 
         // 设置比对配置
-        DataSourceConfig.CompareConfig compareConfig = new DataSourceConfig.CompareConfig();
+        DataSourceCompareConfig.CompareConfig compareConfig = new DataSourceCompareConfig.CompareConfig();
         compareConfig.setName("test-compare");
-        compareConfig.setIgnoreFields(Arrays.asList("create_time", "update_time"));
-        compareConfig.setIgnoreTypes(Arrays.asList("INDEX", "COMMENT"));
+        DataSourceCompareConfig.TableCompareConfig tableConfig = new DataSourceCompareConfig.TableCompareConfig();
+        tableConfig.setSourceTableName("mysql_table");
+        tableConfig.setTargetTableName("tidb_table");
+        tableConfig.setIgnoreFields(Arrays.asList("create_time", "update_time"));
+        tableConfig.setIgnoreTypes(Arrays.asList("INDEX", "COMMENT"));
+        compareConfig.setTableConfigs(Collections.singletonList(tableConfig));
 
         // 执行比对
         CompareResult result = compareService.compareTableStructures(sourceTable, targetTable, compareConfig);
@@ -117,26 +120,28 @@ public class TableStructureCompareServiceTest {
     @Test
     public void testCompareTableStructures_WithNoIgnoredFields() throws Exception {
         // 准备测试数据 - 源表配置
-        DataSourceConfig.TableConfig sourceTableConfig = new DataSourceConfig.TableConfig();
-        sourceTableConfig.setType("mysql");
-        sourceTableConfig.setDataSourceName("mysqlDataSource");
-        sourceTableConfig.setTableName("mysql_table");
+        DataSourceCompareConfig.DataSourceConfig sourceConfig = new DataSourceCompareConfig.DataSourceConfig();
+        sourceConfig.setType("mysql");
+        sourceConfig.setDataSourceName("mysqlDataSource");
 
         // 准备测试数据 - 目标表配置
-        DataSourceConfig.TableConfig targetTableConfig = new DataSourceConfig.TableConfig();
-        targetTableConfig.setType("tidb");
-        targetTableConfig.setDataSourceName("tidbDataSource");
-        targetTableConfig.setTableName("tidb_table");
+        DataSourceCompareConfig.DataSourceConfig targetConfig = new DataSourceCompareConfig.DataSourceConfig();
+        targetConfig.setType("tidb");
+        targetConfig.setDataSourceName("tidbDataSource");
 
         // 获取表结构
-        TableStructure sourceTable = compareService.getTableStructure(sourceTableConfig);
-        TableStructure targetTable = compareService.getTableStructure(targetTableConfig);
+        TableStructure sourceTable = compareService.getTableStructure(sourceConfig, "mysql_table");
+        TableStructure targetTable = compareService.getTableStructure(targetConfig, "tidb_table");
 
         // 设置比对配置 - 不忽略任何字段和类型
-        DataSourceConfig.CompareConfig compareConfig = new DataSourceConfig.CompareConfig();
+        DataSourceCompareConfig.CompareConfig compareConfig = new DataSourceCompareConfig.CompareConfig();
         compareConfig.setName("test-compare-no-ignore");
-        compareConfig.setIgnoreFields(new ArrayList<>());
-        compareConfig.setIgnoreTypes(new ArrayList<>());
+        DataSourceCompareConfig.TableCompareConfig tableConfig = new DataSourceCompareConfig.TableCompareConfig();
+        tableConfig.setSourceTableName("mysql_table");
+        tableConfig.setTargetTableName("tidb_table");
+        tableConfig.setIgnoreFields(new ArrayList<>());
+        tableConfig.setIgnoreTypes(new ArrayList<>());
+        compareConfig.setTableConfigs(Collections.singletonList(tableConfig));
 
         // 执行比对
         CompareResult result = compareService.compareTableStructures(sourceTable, targetTable, compareConfig);
@@ -160,20 +165,18 @@ public class TableStructureCompareServiceTest {
     @Test
     public void testSpecialCaseHandling_MySqlAndTidb() throws Exception {
         // 准备测试数据 - 源表配置 (MySQL)
-        DataSourceConfig.TableConfig sourceTableConfig = new DataSourceConfig.TableConfig();
-        sourceTableConfig.setType("mysql");
-        sourceTableConfig.setDataSourceName("mysqlDataSource");
-        sourceTableConfig.setTableName("mysql_table");
+        DataSourceCompareConfig.DataSourceConfig sourceConfig = new DataSourceCompareConfig.DataSourceConfig();
+        sourceConfig.setType("mysql");
+        sourceConfig.setDataSourceName("mysqlDataSource");
 
         // 准备测试数据 - 目标表配置 (TiDB)
-        DataSourceConfig.TableConfig targetTableConfig = new DataSourceConfig.TableConfig();
-        targetTableConfig.setType("tidb");
-        targetTableConfig.setDataSourceName("tidbDataSource");
-        targetTableConfig.setTableName("tidb_table");
+        DataSourceCompareConfig.DataSourceConfig targetConfig = new DataSourceCompareConfig.DataSourceConfig();
+        targetConfig.setType("tidb");
+        targetConfig.setDataSourceName("tidbDataSource");
 
         // 获取表结构
-        TableStructure sourceTable = compareService.getTableStructure(sourceTableConfig);
-        TableStructure targetTable = compareService.getTableStructure(targetTableConfig);
+        TableStructure sourceTable = compareService.getTableStructure(sourceConfig, "mysql_table");
+        TableStructure targetTable = compareService.getTableStructure(targetConfig, "tidb_table");
         
         // 模拟TiDB的AUTO_RANDOM属性
         for (ColumnStructure column : targetTable.getColumns()) {
@@ -187,7 +190,7 @@ public class TableStructureCompareServiceTest {
         }
 
         // 设置比对配置
-        DataSourceConfig.CompareConfig compareConfig = new DataSourceConfig.CompareConfig();
+        DataSourceCompareConfig.CompareConfig compareConfig = new DataSourceCompareConfig.CompareConfig();
         compareConfig.setName("test-mysql-tidb-special");
 
         // 执行比对
@@ -217,25 +220,27 @@ public class TableStructureCompareServiceTest {
     @Test
     public void testIgnoreColumnTypeDifferences() throws Exception {
         // 准备测试数据 - 源表配置
-        DataSourceConfig.TableConfig sourceTableConfig = new DataSourceConfig.TableConfig();
-        sourceTableConfig.setType("mysql");
-        sourceTableConfig.setDataSourceName("mysqlDataSource");
-        sourceTableConfig.setTableName("mysql_table");
+        DataSourceCompareConfig.DataSourceConfig sourceConfig = new DataSourceCompareConfig.DataSourceConfig();
+        sourceConfig.setType("mysql");
+        sourceConfig.setDataSourceName("mysqlDataSource");
 
         // 准备测试数据 - 目标表配置
-        DataSourceConfig.TableConfig targetTableConfig = new DataSourceConfig.TableConfig();
-        targetTableConfig.setType("tidb");
-        targetTableConfig.setDataSourceName("tidbDataSource");
-        targetTableConfig.setTableName("tidb_table");
+        DataSourceCompareConfig.DataSourceConfig targetConfig = new DataSourceCompareConfig.DataSourceConfig();
+        targetConfig.setType("tidb");
+        targetConfig.setDataSourceName("tidbDataSource");
 
         // 获取表结构
-        TableStructure sourceTable = compareService.getTableStructure(sourceTableConfig);
-        TableStructure targetTable = compareService.getTableStructure(targetTableConfig);
+        TableStructure sourceTable = compareService.getTableStructure(sourceConfig, "mysql_table");
+        TableStructure targetTable = compareService.getTableStructure(targetConfig, "tidb_table");
 
         // 设置比对配置 - 忽略长度和精度差异
-        DataSourceConfig.CompareConfig compareConfig = new DataSourceConfig.CompareConfig();
+        DataSourceCompareConfig.CompareConfig compareConfig = new DataSourceCompareConfig.CompareConfig();
         compareConfig.setName("test-ignore-types");
-        compareConfig.setIgnoreTypes(Arrays.asList("LENGTH", "PRECISION", "SCALE"));
+        DataSourceCompareConfig.TableCompareConfig tableConfig = new DataSourceCompareConfig.TableCompareConfig();
+        tableConfig.setSourceTableName("mysql_table");
+        tableConfig.setTargetTableName("tidb_table");
+        tableConfig.setIgnoreTypes(Arrays.asList("LENGTH", "PRECISION", "SCALE"));
+        compareConfig.setTableConfigs(Collections.singletonList(tableConfig));
 
         // 执行比对
         CompareResult result = compareService.compareTableStructures(sourceTable, targetTable, compareConfig);
@@ -261,7 +266,7 @@ public class TableStructureCompareServiceTest {
         assertFalse(precisionDiffFound, "精度差异应该被忽略");
         
         // 重新执行比对，这次不忽略任何类型
-        compareConfig.setIgnoreTypes(new ArrayList<>());
+        tableConfig.setIgnoreTypes(new ArrayList<>());
         CompareResult fullResult = compareService.compareTableStructures(sourceTable, targetTable, compareConfig);
         
         // 这次应该检测到长度和精度差异

@@ -1,33 +1,139 @@
 spring:
   datasource:
     mysql:
-      url: jdbc:mysql://localhost:3306/test_db
-      username: root
-      password: root
+      jdbcUrl: jdbc:mysql://localhost:23306/hds_mysql_db
+      username: my_user
+      password: 'SecurePass123!'
       driver-class-name: com.mysql.cj.jdbc.Driver
     tidb:
-      url: jdbc:mysql://localhost:4000/test_db
-      username: root
-      password: root
+      jdbcUrl: jdbc:mysql://gateway01.us-west-2.prod.aws.tidbcloud.com:4000/test
+      username: '4QSe7xb7fJajYDK.root'
+      password: 'j4zBcHGXR2DKKliO'
       driver-class-name: com.mysql.cj.jdbc.Driver
-
-hydra:
-  heterogeneous-compare:
-    auto-compare-on-startup: true
-    verbose-output: true
-    compare-configs:
-      - name: "mysql-to-tidb-compare"
-        source-table:
-          type: "mysql"
-          data-source-name: "mysqlDataSource"
-          table-name: "user_info"
-        target-table:
-          type: "tidb"
-          data-source-name: "tidbDataSource"
-          table-name: "user_info"
-        ignore-fields:
-          - "create_time"
-          - "update_time"
-        ignore-types:
-          - "COMMENT"
-          - "INDEX" 
+jtools:
+  hdscompare:
+    elasticsearch:
+      enabled: true
+      props:
+        clients:
+          default_es: 
+            hosts:
+              - "http://localhost:29200"
+            connect-timeout: 5000
+            socket-timeout: 60000
+          default_es_2: 
+            hosts:
+              - "http://localhost:29200"
+            connect-timeout: 5000
+            socket-timeout: 60000
+    config:
+      auto-compare-on-startup: true
+      verbose-output: true
+      compare-configs:
+        - name: "mysql-to-tidb-compare"
+          source-data-source:
+            type: "mysql"
+            data-source-name: "mysqlDataSource"
+          target-data-source:
+            type: "tidb"
+            data-source-name: "tidbDataSource"
+          table-configs:
+            - source-table-name: "fortune500_2018_2022"
+              target-table-name: "fortune500_2018_2022"
+              ignore-fields:
+                - "create_time"
+                - "update_time"
+              ignore-types:
+                - "COMMENT"
+                - "INDEX"
+            - source-table-name: "employees"
+              target-table-name: "employees"
+              ignore-fields:
+                - "create_time"
+                - "update_time"
+              ignore-types:
+                - "COMMENT"
+                - "INDEX" 
+        - name: "mysql-to-es-compare"
+          source-data-source:
+            type: "mysql"
+            data-source-name: "mysqlDataSource"
+          target-data-source:
+            type: "elasticsearch"
+            data-source-name: "default_es"
+          table-configs:
+            - source-table-name: "fortune500_2018_2022"
+              target-table-name: "fortune500_2018_2022"
+              ignore-fields:
+                - "create_time"
+                - "update_time"
+              ignore-types:
+                - "COMMENT"
+                - "INDEX"
+            - source-table-name: "employees"
+              target-table-name: "employees"
+              ignore-fields:
+                - "create_time"
+                - "update_time"
+              ignore-types:
+                - "INDEX" 
+        - name: "es-to-tidb-compare"
+          source-data-source:
+            type: "elasticsearch"
+            data-source-name: "default_es"
+          target-data-source:
+            type: "tidb"
+            data-source-name: "tidbDataSource"
+          table-configs:
+            - source-table-name: "fortune500_2018_2022"
+              target-table-name: "fortune500_2018_2022"
+              ignore-fields:
+                - "create_time"
+                - "update_time"
+              ignore-types:
+                - "COMMENT"
+            - source-table-name: "employees"
+              target-table-name: "employees"
+              ignore-fields:
+                - "create_time"
+                - "update_time"
+              ignore-types:
+                - "INDEX" 
+        - name: "es-to-mysql-compare"
+          source-data-source:
+            type: "elasticsearch"
+            data-source-name: "default_es"
+          target-data-source:
+            type: "mysql"
+            data-source-name: "mysqlDataSource"
+          table-configs:
+            - source-table-name: "fortune500_2018_2022"
+              target-table-name: "fortune500_2018_2022"
+              ignore-fields:
+                - "create_time"
+                - "update_time"
+              ignore-types:
+                - "COMMENT"
+            - source-table-name: "employees"
+              target-table-name: "employees"
+              ignore-fields:
+                - "create_time"
+                - "update_time"
+              ignore-types:
+                - "INDEX" 
+        - name: "es-to-es-compare"
+          source-data-source:
+            type: "elasticsearch"
+            data-source-name: "default_es"
+          target-data-source:
+            type: "elasticsearch"
+            data-source-name: "default_es_2"
+          table-configs:
+            - source-table-name: "fortune500_2018_2022"
+              target-table-name: "fortune500_2018_2023"
+              ignore-fields:
+                - "create_time"
+                - "update_time"
+              ignore-types:
+                - "COMMENT"
+              

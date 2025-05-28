@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.wesuper.jtools.hdscompare.config.DataSourceConfig;
+import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
 import org.wesuper.jtools.hdscompare.model.CompareResult;
 import org.wesuper.jtools.hdscompare.service.TableStructureCompareService;
 
@@ -23,7 +23,7 @@ public class TableStructureCompareAutoStarter implements ApplicationRunner {
     private static final Logger logger = LoggerFactory.getLogger(TableStructureCompareAutoStarter.class);
     
     @Autowired
-    private DataSourceConfig dataSourceConfig;
+    private DataSourceCompareConfig dataSourceConfig;
     
     @Autowired
     private TableStructureCompareService compareService;
@@ -47,7 +47,7 @@ public class TableStructureCompareAutoStarter implements ApplicationRunner {
             
             logComparisonResults(results);
         } catch (Exception e) {
-            logger.error("Error during automatic table structure comparison: {}", e.getMessage(), e);
+            logger.error("Error during automatic table structure comparison", e);
         }
     }
     
@@ -95,78 +95,120 @@ public class TableStructureCompareAutoStarter implements ApplicationRunner {
      */
     private void printResultSummary(CompareResult result) {
         boolean verbose = dataSourceConfig.isVerboseOutput();
+        StringBuilder summary = new StringBuilder();
         
+        // 添加表比对名称和基本信息
+        summary.append("\n=== Table Comparison: ").append(result.getName()).append(" ===\n");
+        summary.append("Source Table: ").append(result.getSourceTable().getSourceType()).append(".").append(result.getSourceTable().getTableName()).append("\n");
+        summary.append("Target Table: ").append(result.getTargetTable().getSourceType()).append(".").append(result.getTargetTable().getTableName()).append("\n");
+        
+        // 添加忽略的内容
+        DataSourceCompareConfig.TableCompareConfig tableConfig = dataSourceConfig.getCompareConfigs().stream()
+                .filter(config -> config.getName().equals(result.getName()))
+                .findFirst()
+                .map(config -> config.getTableConfigs().get(0))
+                .orElse(null);
+        if (tableConfig != null && tableConfig.getIgnoreFields() != null && !tableConfig.getIgnoreFields().isEmpty()) {
+            summary.append("Ignored Fields: ").append(String.join(", ", tableConfig.getIgnoreFields())).append("\n");
+        }
+        if (tableConfig != null && tableConfig.getIgnoreTypes() != null && !tableConfig.getIgnoreTypes().isEmpty()) {
+            summary.append("Ignored Types: ").append(String.join(", ", tableConfig.getIgnoreTypes())).append("\n");
+        }
+        
+        // 添加列差异信息
         if (!result.getColumnDifferences().isEmpty()) {
-            logger.info("Column differences ({}): ", result.getColumnDifferences().size());
-            
+            summary.append("\nColumn Differences (").append(result.getColumnDifferences().size()).append("):\n");
             result.getColumnDifferences().forEach(diff -> {
                 String level = "[" + diff.getLevel() + "]";
                 switch (diff.getType()) {
                     case COLUMN_MISSING:
                         if (diff.getSourceColumn() != null) {
-                            logger.info("  {} Column missing in target: {}", level, diff.getColumnName());
+                            summary.append("  ").append(level).append(" Column missing in target: ").append(diff.getColumnName()).append("\n");
                         } else {
-                            logger.info("  {} Column missing in source: {}", level, diff.getColumnName());
+                            summary.append("  ").append(level).append(" Column missing in source: ").append(diff.getColumnName()).append("\n");
                         }
                         break;
                     case COLUMN_TYPE_DIFFERENT:
                     case COLUMN_PROPERTY_DIFFERENT:
                         if (verbose) {
-                            logger.info("  {} Column '{}' differences:", level, diff.getColumnName());
+                            summary.append("  ").append(level).append(" Column '").append(diff.getColumnName()).append("' differences:\n");
                             diff.getPropertyDifferences().forEach((property, propDiff) -> {
-                                logger.info("    - {}: {} → {}", property, propDiff.getSourceValue(), 
-                                        propDiff.getTargetValue());
+                                summary.append("    - ").append(property).append(": ")
+                                      .append(propDiff.getSourceValue()).append(" → ")
+                                      .append(propDiff.getTargetValue()).append("\n");
                             });
                         } else {
-                            logger.info("  {} Column '{}' has different properties", level, diff.getColumnName());
+                            summary.append("  ").append(level).append(" Column '").append(diff.getColumnName())
+                                  .append("' has different properties\n");
                         }
                         break;
                     default:
-                        logger.info("  {} Column '{}' has unknown difference type: {}", level, diff.getColumnName(), diff.getType());
+                        summary.append("  ").append(level).append(" Column '").append(diff.getColumnName())
+                              .append("' has unknown difference type: ").append(diff.getType()).append("\n");
                         break;
                 }
             });
         }
         
+        // 添加索引差异信息
         if (!result.getIndexDifferences().isEmpty()) {
-            logger.info("Index differences ({}): ", result.getIndexDifferences().size());
-            
+            summary.append("\nIndex Differences (").append(result.getIndexDifferences().size()).append("):\n");
             result.getIndexDifferences().forEach(diff -> {
                 String level = "[" + diff.getLevel() + "]";
                 switch (diff.getType()) {
                     case INDEX_MISSING:
                         if (diff.getSourceIndex() != null) {
-                            logger.info("  {} Index missing in target: {}", level, diff.getIndexName());
+                            summary.append("  ").append(level).append(" Index missing in target: ").append(diff.getIndexName()).append("\n");
                         } else {
-                            logger.info("  {} Index missing in source: {}", level, diff.getIndexName());
+                            summary.append("  ").append(level).append(" Index missing in source: ").append(diff.getIndexName()).append("\n");
                         }
                         break;
                     case INDEX_STRUCTURE_DIFFERENT:
                         if (verbose) {
-                            logger.info("  {} Index '{}' differences:", level, diff.getIndexName());
+                            summary.append("  ").append(level).append(" Index '").append(diff.getIndexName()).append("' differences:\n");
                             diff.getPropertyDifferences().forEach((property, propDiff) -> {
-                                logger.info("    - {}: {} → {}", property, propDiff.getSourceValue(), 
-                                        propDiff.getTargetValue());
+                                summary.append("    - ").append(property).append(": ")
+                                      .append(propDiff.getSourceValue()).append(" → ")
+                                      .append(propDiff.getTargetValue()).append("\n");
                             });
                         } else {
-                            logger.info("  {} Index '{}' has different properties", level, diff.getIndexName());
+                            summary.append("  ").append(level).append(" Index '").append(diff.getIndexName())
+                                  .append("' has different properties\n");
                         }
                         break;
                     default:
-                        logger.info("  {} Index '{}' has unknown difference type: {}", level, diff.getIndexName(), diff.getType());
+                        summary.append("  ").append(level).append(" Index '").append(diff.getIndexName())
+                              .append("' has unknown difference type: ").append(diff.getType()).append("\n");
                         break;
                 }
             });
         }
         
+        // 添加表属性差异信息
         if (!result.getTableDifferences().isEmpty()) {
-            logger.info("Table differences ({}): ", result.getTableDifferences().size());
-            
+            summary.append("\nTable Property Differences (").append(result.getTableDifferences().size()).append("):\n");
             result.getTableDifferences().forEach(diff -> {
                 String level = "[" + diff.getLevel() + "]";
-                logger.info("  {} Table property '{}': {} → {}", level, diff.getPropertyName(), 
-                        diff.getSourceValue(), diff.getTargetValue());
+                summary.append("  ").append(level).append(" Property '").append(diff.getPropertyName())
+                      .append("': ").append(diff.getSourceValue())
+                      .append(" → ").append(diff.getTargetValue()).append("\n");
             });
         }
+        
+        // 添加比对结论
+        summary.append("\nComparison Result: ");
+        if (result.isFullyMatched()) {
+            summary.append("FULLY MATCHED (100%)");
+        } else {
+            summary.append("DIFFERENCES FOUND (").append(String.format("%.2f", result.getMatchPercentage())).append("%)");
+            if (result.hasCriticalDifferences()) {
+                summary.append(" [CRITICAL DIFFERENCES]");
+            } else if (result.hasWarningDifferences()) {
+                summary.append(" [WARNINGS]");
+            }
+        }
+        
+        // 一次性输出所有信息
+        logger.info(summary.toString());
     }
 } 

@@ -1,6 +1,14 @@
-# HDS Schema Compare
+# HDS Schema Tools
 
 异构数据源表结构比对工具，支持 MySQL、TiDB、Elasticsearch 等数据源之间的表结构比对。
+
+## 项目结构
+
+```
+hds-schema-tools/
+├── hds-schema-compare/  # 表结构比对模块
+└── hds-schema-extract/  # 表结构提取模块
+```
 
 ## 功能特点
 
@@ -125,19 +133,33 @@ jtools:
 ### 项目结构
 
 ```
-hds-schema-compare/
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── org/wesuper/jtools/hdscompare/
-│   │   │       ├── config/          # 配置类
-│   │   │       ├── extractor/       # 表结构提取器
-│   │   │       ├── model/          # 数据模型
-│   │   │       └── service/        # 服务实现
-│   │   └── resources/
-│   │       └── application.yml     # 配置文件
-│   └── test/                       # 测试代码
-└── pom.xml                         # 项目依赖
+hds-schema-tools/
+├── hds-schema-compare/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/
+│   │   │   │   └── org/wesuper/jtools/hdscompare/
+│   │   │   │       ├── config/          # 配置类
+│   │   │   │       ├── extractor/       # 表结构提取器
+│   │   │   │       ├── model/          # 数据模型
+│   │   │   │       └── service/        # 服务实现
+│   │   │   └── resources/
+│   │   │       └── application.yml     # 配置文件
+│   │   └── test/                       # 测试代码
+│   └── pom.xml                         # 项目依赖
+└── hds-schema-extract/
+    ├── src/
+    │   ├── main/
+    │   │   ├── java/
+    │   │   │   └── org/wesuper/jtools/hdsextract/
+    │   │   │       ├── config/          # 配置类
+    │   │   │       ├── extractor/       # 表结构提取器
+    │   │   │       ├── model/          # 数据模型
+    │   │   │       └── service/        # 服务实现
+    │   │   └── resources/
+    │   │       └── application.yml     # 配置文件
+    │   └── test/                       # 测试代码
+    └── pom.xml                         # 项目依赖
 ```
 
 ### 扩展支持

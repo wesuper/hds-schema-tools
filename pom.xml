@@ -12,7 +12,6 @@
     <modules>
         <module>hds-schema-compare</module>
         <module>hds-schema-compare-example</module>
-        <module>hds-schema-compare-example</module>
     </modules>
 
     <properties>
@@ -28,22 +27,39 @@
         <file.encoding>UTF-8</file.encoding>
 
         <spring-boot.version>2.7.18</spring-boot.version>
+        <elasticsearch.version>7.10.1</elasticsearch.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-dependencies</artifactId>
-				<version>${spring-boot.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>hds-schema-compare</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>org.elasticsearch.client</groupId>
                 <artifactId>elasticsearch-rest-high-level-client</artifactId>
-                <version>7.10.1</version>
+                <version>${elasticsearch.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.elasticsearch</groupId>
+                <artifactId>elasticsearch</artifactId>
+                <version>${elasticsearch.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.elasticsearch.client</groupId>
+                <artifactId>elasticsearch-rest-client</artifactId>
+                <version>${elasticsearch.version}</version>
             </dependency>
 
             <dependency>
@@ -66,7 +82,7 @@
                     <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
-            
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -75,7 +91,7 @@
                     <argLine>-Dfile.encoding=UTF-8</argLine>
                 </configuration>
             </plugin>
-            
+
             <!-- SpotBugs 静态代码分析 -->
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
@@ -88,7 +104,7 @@
                     <failOnError>false</failOnError>
                 </configuration>
             </plugin>
-            
+
             <!-- PMD 代码质量检查 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -106,7 +122,7 @@
                     <failOnViolation>false</failOnViolation>
                 </configuration>
             </plugin>
-            
+
             <!-- Checkstyle 代码风格检查 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
