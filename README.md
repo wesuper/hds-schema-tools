@@ -36,8 +36,8 @@ graph TD
     D --> G[Elasticsearch Extractor]
     D --> P[POJO Extractor]
     C --> H[CompareResult]
-    H --> I[输出比对报告 (控制台)]
-    H --> M[输出比对报告 (Markdown 文件)]
+    H --> I[输出比对报告 （控制台）]
+    H --> M[输出比对报告 （Markdown 文件）]
 ```
 
 ## 配置说明
