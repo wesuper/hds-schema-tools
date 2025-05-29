@@ -7,7 +7,7 @@
 ```
 hds-schema-tools/
 ├── hds-schema-compare/  # 表结构比对模块
-└── hds-schema-extract/  # 表结构提取模块
+└── hds-schema-compare-example/  # 表结构比对使用示例
 ```
 
 ## 功能特点
