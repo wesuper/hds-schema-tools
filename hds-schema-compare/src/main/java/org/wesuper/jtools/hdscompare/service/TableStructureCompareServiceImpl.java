@@ -17,23 +17,16 @@ import org.wesuper.jtools.hdscompare.model.CompareResult.DifferenceLevel;
 import org.wesuper.jtools.hdscompare.model.CompareResult.DifferenceType;
 import org.wesuper.jtools.hdscompare.model.CompareResult.IndexDifference;
 import org.wesuper.jtools.hdscompare.model.CompareResult.TableDifference;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
 import org.wesuper.jtools.hdscompare.constants.DatabaseType;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.HashMap;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -43,7 +36,6 @@ import java.util.Set;
  * @author vincentruan
  * @version 1.0.0
  */
-@Service
 public class TableStructureCompareServiceImpl implements TableStructureCompareService {
 
     private static final Logger logger = LoggerFactory.getLogger(TableStructureCompareServiceImpl.class);
@@ -528,62 +520,9 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
         String sDataTypeLower = sDataTypeOriginal.toLowerCase();
         String tDataTypeLower = tDataTypeOriginal.toLowerCase();
 
-        boolean typesCompatible = false;
-        ColumnStructure.TypeMapping sourceToTargetMapping = sourceColumn.getTypeMapping(targetDbType);
-        ColumnStructure.TypeMapping targetToSourceMapping = targetColumn.getTypeMapping(sourceDbType);
-
-        logger.debug("Col '{}': Checking type compatibility. Source: '{}' (DB: {}), Target: '{}' (DB: {})", columnName, sDataTypeOriginal, sourceDbType, tDataTypeOriginal, targetDbType);
-        if (sourceToTargetMapping != null) logger.debug("   SourceMapping to TargetDB ({} for col '{}'): {}", targetDbType, columnName, sourceToTargetMapping.getColumnTypes());
-        if (targetToSourceMapping != null) logger.debug("   TargetMapping to SourceDB ({} for col '{}'): {}", sourceDbType, columnName, targetToSourceMapping.getColumnTypes());
-
-        if (sourceIsPOJO) {
-            if (targetIsES || isMySQLFamily(targetDbType)) { // POJO to ES or POJO to MySQL/TiDB
-                logger.debug("Col '{}': Path A (POJO to DB/ES)", columnName);
-                if (sourceToTargetMapping != null) {
-                    typesCompatible = sourceToTargetMapping.hasColumnType(tDataTypeLower);
-                    logger.debug("   Path A - Compatible by sourceToTargetMapping.hasColumnType(\"{}\"): {}", tDataTypeLower, typesCompatible);
-                }
-            } else { // POJO to POJO (or other non-ES/MySQL)
-                 logger.debug("Col '{}': Path B (POJO to Other/POJO)", columnName);
-                 typesCompatible = sDataTypeLower.equals(tDataTypeLower); 
-                 logger.debug("   Path B - Compatible by direct string equality: {}", typesCompatible);
-            }
-        } else if (targetIsPOJO) {
-            if (sourceIsES || isMySQLFamily(sourceDbType)) { // ES to POJO or MySQL/TiDB to POJO
-                logger.debug("Col '{}': Path C (DB/ES to POJO)", columnName);
-                if (targetToSourceMapping != null) { // target (POJO) column's mapping for sourceDB
-                    typesCompatible = targetToSourceMapping.hasColumnType(sDataTypeLower);
-                    logger.debug("   Path C - Compatible by targetToSourceMapping.hasColumnType(\"{}\"): {}", sDataTypeLower, typesCompatible);
-                }
-            } 
-            // else: Other to POJO (will be covered by generic checks or direct equality if Path A didn't make it compatible)
-        } 
-        
-        // Generic mapping checks if not yet compatible (e.g. ES to MySQL, or if POJO paths didn't fully resolve)
-        if (!typesCompatible) {
-            logger.debug("Col '{}': Path D (Generic mapping checks as not yet compatible or not primary POJO case)", columnName);
-            if (sourceToTargetMapping != null && targetToSourceMapping != null) { 
-                typesCompatible = sourceToTargetMapping.hasCommonColumnType(targetToSourceMapping);
-                logger.debug("   Path D.1 - Compatible by hasCommonColumnType: {}", typesCompatible);
-            }
-            if (!typesCompatible && sourceToTargetMapping != null) {
-                typesCompatible = sourceToTargetMapping.hasColumnType(tDataTypeLower);
-                logger.debug("   Path D.2 - Compatible by sourceToTargetMapping.hasColumnType(\"{}\"): {}", tDataTypeLower, typesCompatible);
-            }
-            if (!typesCompatible && targetToSourceMapping != null) {
-                typesCompatible = targetToSourceMapping.hasColumnType(sDataTypeLower);
-                logger.debug("   Path D.3 - Compatible by targetToSourceMapping.hasColumnType(\"{}\"): {}", sDataTypeLower, typesCompatible);
-            }
-        }
-
-        // Final fallback: direct string equality if still not compatible
-        if (!typesCompatible) {
-            logger.debug("Col '{}': Path E (Fallback to direct string equality)", columnName);
-            typesCompatible = sDataTypeLower.equals(tDataTypeLower);
-            logger.debug("   Path E - Compatible by sDataTypeLower.equals(tDataTypeLower): {}", typesCompatible);
-        }
-        
-        logger.debug("Col '{}': Final typesCompatible = {}", columnName, typesCompatible);
+        boolean typesCompatible = resolveColumnTypeCompatibility(sourceColumn, targetColumn, sourceDbType, targetDbType,
+                                                               sDataTypeOriginal, tDataTypeOriginal,
+                                                               sDataTypeLower, tDataTypeLower, columnName);
 
         // EXPERIMENTAL CHANGE: If types are compatible and it's a POJO/ES comparison, consider it fully matched for this column and return early.
         if (typesCompatible && isPojoOrEsComparison) {
@@ -607,43 +546,10 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
             columnDiff.setSourceColumn(sourceColumn);
             columnDiff.setTargetColumn(targetColumn);
 
-            if (!isPojoOrEsComparison) { 
-                if (sourceColumn.isNullable() != targetColumn.isNullable() && !isIgnoredType(config, "NULLABLE")) {
-                    columnDiff.addPropertyDifference("nullable", sourceColumn.isNullable(), targetColumn.isNullable(), DifferenceLevel.WARNING);
-                    hasDifferences = true;
-                    result.incrementDifferenceCount(DifferenceLevel.WARNING);
-                }
-                if (!isDefaultValueEqual(sourceColumn.getDefaultValue(), targetColumn.getDefaultValue(),
-                        sourceDbType, targetDbType) && !isIgnoredType(config, "DEFAULT")) {
-                    columnDiff.addPropertyDifference("defaultValue", sourceColumn.getDefaultValue(), targetColumn.getDefaultValue(), DifferenceLevel.WARNING);
-                    hasDifferences = true;
-                    result.incrementDifferenceCount(DifferenceLevel.WARNING);
-                }
-                if (sourceColumn.isAutoIncrement() != targetColumn.isAutoIncrement()) {
-                    boolean isSpecialCase = (isMySQLFamily(sourceDbType) && isMySQLFamily(targetDbType)) && 
-                                            (sourceColumn.isAutoIncrement() && Boolean.TRUE.equals(targetColumn.getProperties().get("is_auto_random")));
-                    if (!isSpecialCase && !isIgnoredType(config, "AUTO_INCREMENT")) {
-                         columnDiff.addPropertyDifference("autoIncrement", sourceColumn.isAutoIncrement(), targetColumn.isAutoIncrement(), DifferenceLevel.WARNING);
-                        hasDifferences = true;
-                        result.incrementDifferenceCount(DifferenceLevel.WARNING);
-                    }
-                }
-                boolean isInteger = isIntegerType(sDataTypeLower) || isIntegerType(tDataTypeLower);
-                if (!isInteger) { 
-                    compareColumnLengthProperties(columnDiff, sourceColumn, targetColumn, config, result, columnName);
-                    if (columnDiff.getPropertyDifferences() != null && 
-                        columnDiff.getPropertyDifferences().keySet().stream().anyMatch(key -> key.equals("length") || key.equals("precision") || key.equals("scale"))) {
-                       hasDifferences = true; 
-                    }
-                }
-                if (!isCommentEqual(sourceColumn.getComment(), targetColumn.getComment(), sourceDbType, targetDbType) && 
-                    !isIgnoredType(config, "COMMENT")) {
-                    // For non-POJO/ES, any comment difference is a difference
-                    columnDiff.addPropertyDifference("comment", sourceColumn.getComment(), targetColumn.getComment(), DifferenceLevel.NOTICE);
-                    hasDifferences = true;
-                    result.incrementDifferenceCount(DifferenceLevel.NOTICE);
-                }
-            } 
+            if (!isPojoOrEsComparison) {
+                hasDifferences = compareStandardColumnProperties(columnDiff, sourceColumn, targetColumn, config, result,
+                                                               sourceDbType, targetDbType, sDataTypeLower, tDataTypeLower, columnName);
+            }
         }
 
         if (hasDifferences && columnDiff != null) { 
@@ -652,6 +558,126 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
                 result.getColumnDifferences().add(columnDiff);
             }
         }
+    }
+
+    /**
+     * Resolves column type compatibility between source and target columns.
+     */
+    private boolean resolveColumnTypeCompatibility(ColumnStructure sourceColumn, ColumnStructure targetColumn,
+                                                   String sourceDbType, String targetDbType,
+                                                   String sDataTypeOriginal, String tDataTypeOriginal,
+                                                   String sDataTypeLower, String tDataTypeLower, String columnName) {
+        boolean typesCompatible = false;
+        ColumnStructure.TypeMapping sourceToTargetMapping = sourceColumn.getTypeMapping(targetDbType);
+        ColumnStructure.TypeMapping targetToSourceMapping = targetColumn.getTypeMapping(sourceDbType);
+
+        boolean sourceIsPOJO = sourceDbType.equalsIgnoreCase(DatabaseType.POJO);
+        boolean targetIsPOJO = targetDbType.equalsIgnoreCase(DatabaseType.POJO);
+        boolean sourceIsES = sourceDbType.equalsIgnoreCase(DatabaseType.ELASTICSEARCH);
+        boolean targetIsES = targetDbType.equalsIgnoreCase(DatabaseType.ELASTICSEARCH);
+
+        logger.debug("Col '{}': Checking type compatibility. Source: '{}' (DB: {}), Target: '{}' (DB: {})", columnName, sDataTypeOriginal, sourceDbType, tDataTypeOriginal, targetDbType);
+        if (sourceToTargetMapping != null) logger.debug("   SourceMapping to TargetDB ({} for col '{}'): {}", targetDbType, columnName, sourceToTargetMapping.getColumnTypes());
+        if (targetToSourceMapping != null) logger.debug("   TargetMapping to SourceDB ({} for col '{}'): {}", sourceDbType, columnName, targetToSourceMapping.getColumnTypes());
+
+        if (sourceIsPOJO) {
+            if (targetIsES || isMySQLFamily(targetDbType)) { // POJO to ES or POJO to MySQL/TiDB
+                logger.debug("Col '{}': Path A (POJO to DB/ES)", columnName);
+                if (sourceToTargetMapping != null) {
+                    typesCompatible = sourceToTargetMapping.hasColumnType(tDataTypeLower);
+                    logger.debug("   Path A - Compatible by sourceToTargetMapping.hasColumnType(\"{}\"): {}", tDataTypeLower, typesCompatible);
+                }
+            } else { // POJO to POJO (or other non-ES/MySQL)
+                 logger.debug("Col '{}': Path B (POJO to Other/POJO)", columnName);
+                 typesCompatible = sDataTypeLower.equals(tDataTypeLower);
+                 logger.debug("   Path B - Compatible by direct string equality: {}", typesCompatible);
+            }
+        } else if (targetIsPOJO) {
+            if (sourceIsES || isMySQLFamily(sourceDbType)) { // ES to POJO or MySQL/TiDB to POJO
+                logger.debug("Col '{}': Path C (DB/ES to POJO)", columnName);
+                if (targetToSourceMapping != null) { // target (POJO) column's mapping for sourceDB
+                    typesCompatible = targetToSourceMapping.hasColumnType(sDataTypeLower);
+                    logger.debug("   Path C - Compatible by targetToSourceMapping.hasColumnType(\"{}\"): {}", sDataTypeLower, typesCompatible);
+                }
+            }
+            // else: Other to POJO (will be covered by generic checks or direct equality if Path A didn't make it compatible)
+        }
+
+        // Generic mapping checks if not yet compatible (e.g. ES to MySQL, or if POJO paths didn't fully resolve)
+        if (!typesCompatible) {
+            logger.debug("Col '{}': Path D (Generic mapping checks as not yet compatible or not primary POJO case)", columnName);
+            if (sourceToTargetMapping != null && targetToSourceMapping != null) {
+                typesCompatible = sourceToTargetMapping.hasCommonColumnType(targetToSourceMapping);
+                logger.debug("   Path D.1 - Compatible by hasCommonColumnType: {}", typesCompatible);
+            }
+            if (!typesCompatible && sourceToTargetMapping != null) {
+                typesCompatible = sourceToTargetMapping.hasColumnType(tDataTypeLower);
+                logger.debug("   Path D.2 - Compatible by sourceToTargetMapping.hasColumnType(\"{}\"): {}", tDataTypeLower, typesCompatible);
+            }
+            if (!typesCompatible && targetToSourceMapping != null) {
+                typesCompatible = targetToSourceMapping.hasColumnType(sDataTypeLower);
+                logger.debug("   Path D.3 - Compatible by targetToSourceMapping.hasColumnType(\"{}\"): {}", sDataTypeLower, typesCompatible);
+            }
+        }
+
+        // Final fallback: direct string equality if still not compatible
+        if (!typesCompatible) {
+            logger.debug("Col '{}': Path E (Fallback to direct string equality)", columnName);
+            typesCompatible = sDataTypeLower.equals(tDataTypeLower);
+            logger.debug("   Path E - Compatible by sDataTypeLower.equals(tDataTypeLower): {}", typesCompatible);
+        }
+
+        logger.debug("Col '{}': Final typesCompatible = {}", columnName, typesCompatible);
+        return typesCompatible;
+    }
+
+    /**
+     * Compares standard column properties (nullable, default, auto-increment, length, comment)
+     * for non-POJO and non-ES comparisons.
+     * Returns true if differences were found.
+     */
+    private boolean compareStandardColumnProperties(ColumnDifference columnDiff, ColumnStructure sourceColumn, ColumnStructure targetColumn,
+                                                  DataSourceCompareConfig.CompareConfig config, CompareResult result,
+                                                  String sourceDbType, String targetDbType,
+                                                  String sDataTypeLower, String tDataTypeLower, String columnName) {
+        boolean localHasDifferences = false;
+
+        if (sourceColumn.isNullable() != targetColumn.isNullable() && !isIgnoredType(config, "NULLABLE")) {
+            columnDiff.addPropertyDifference("nullable", sourceColumn.isNullable(), targetColumn.isNullable(), DifferenceLevel.WARNING);
+            localHasDifferences = true;
+            result.incrementDifferenceCount(DifferenceLevel.WARNING);
+        }
+        if (!isDefaultValueEqual(sourceColumn.getDefaultValue(), targetColumn.getDefaultValue(),
+                sourceDbType, targetDbType) && !isIgnoredType(config, "DEFAULT")) {
+            columnDiff.addPropertyDifference("defaultValue", sourceColumn.getDefaultValue(), targetColumn.getDefaultValue(), DifferenceLevel.WARNING);
+            localHasDifferences = true;
+            result.incrementDifferenceCount(DifferenceLevel.WARNING);
+        }
+        if (sourceColumn.isAutoIncrement() != targetColumn.isAutoIncrement()) {
+            boolean isSpecialCase = (isMySQLFamily(sourceDbType) && isMySQLFamily(targetDbType)) &&
+                                    (sourceColumn.isAutoIncrement() && Boolean.TRUE.equals(targetColumn.getProperties().get("is_auto_random")));
+            if (!isSpecialCase && !isIgnoredType(config, "AUTO_INCREMENT")) {
+                 columnDiff.addPropertyDifference("autoIncrement", sourceColumn.isAutoIncrement(), targetColumn.isAutoIncrement(), DifferenceLevel.WARNING);
+                localHasDifferences = true;
+                result.incrementDifferenceCount(DifferenceLevel.WARNING);
+            }
+        }
+        boolean isInteger = isIntegerType(sDataTypeLower) || isIntegerType(tDataTypeLower);
+        if (!isInteger) {
+            int initialPropertyDiffCount = columnDiff.getPropertyDifferences() != null ? columnDiff.getPropertyDifferences().size() : 0;
+            compareColumnLengthProperties(columnDiff, sourceColumn, targetColumn, config, result, columnName);
+            int finalPropertyDiffCount = columnDiff.getPropertyDifferences() != null ? columnDiff.getPropertyDifferences().size() : 0;
+            if (finalPropertyDiffCount > initialPropertyDiffCount) {
+                localHasDifferences = true;
+            }
+        }
+        if (!isCommentEqual(sourceColumn.getComment(), targetColumn.getComment(), sourceDbType, targetDbType) &&
+            !isIgnoredType(config, "COMMENT")) {
+            columnDiff.addPropertyDifference("comment", sourceColumn.getComment(), targetColumn.getComment(), DifferenceLevel.NOTICE);
+            localHasDifferences = true;
+            result.incrementDifferenceCount(DifferenceLevel.NOTICE);
+        }
+        return localHasDifferences;
     }
 
     /**

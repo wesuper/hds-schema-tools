@@ -8,8 +8,16 @@ import org.springframework.boot.ApplicationRunner;
 import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
 import org.wesuper.jtools.hdscompare.model.CompareResult;
 import org.wesuper.jtools.hdscompare.service.TableStructureCompareService;
+import org.wesuper.jtools.hdscompare.model.CompareResult.DifferenceLevel;
+import org.wesuper.jtools.hdscompare.model.CompareResult.TableDifference;
+import org.wesuper.jtools.hdscompare.model.CompareResult.ColumnDifference;
+import org.wesuper.jtools.hdscompare.model.CompareResult.IndexDifference;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 表结构比对自动启动器
@@ -46,6 +54,11 @@ public class TableStructureCompareAutoStarter implements ApplicationRunner {
             }
             
             logComparisonResults(results);
+
+            if (dataSourceConfig.isEnableMarkdownOutput()) {
+                writeResultsToMarkdownFile(results, dataSourceConfig.getMarkdownOutputFilePath());
+            }
+
         } catch (Exception e) {
             logger.error("Error during automatic table structure comparison", e);
         }
@@ -210,5 +223,142 @@ public class TableStructureCompareAutoStarter implements ApplicationRunner {
         
         // 一次性输出所有信息
         logger.info(summary.toString());
+    }
+
+    private void writeResultsToMarkdownFile(List<CompareResult> results, String filePath) {
+        logger.info("Writing comparison results to Markdown file: {}", filePath);
+        StringBuilder markdownBuilder = new StringBuilder();
+        markdownBuilder.append("# Table Structure Comparison Report\n\n");
+
+        for (CompareResult result : results) {
+            DataSourceCompareConfig.TableCompareConfig tableConfig = dataSourceConfig.getCompareConfigs().stream()
+                    .filter(config -> config.getName().equals(result.getName()))
+                    .findFirst()
+                    .flatMap(config -> config.getTableConfigs().stream().findFirst())
+                    .orElse(null);
+            markdownBuilder.append(formatResultToMarkdown(result, tableConfig));
+        }
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+            writer.write(markdownBuilder.toString());
+            logger.info("Successfully wrote comparison results to {}", filePath);
+        } catch (IOException e) {
+            logger.error("Failed to write Markdown report to {}: {}", filePath, e.getMessage(), e);
+        }
+    }
+
+    private String formatResultToMarkdown(CompareResult result, DataSourceCompareConfig.TableCompareConfig tableConfig) {
+        StringBuilder md = new StringBuilder();
+
+        md.append("## Comparison: ").append(result.getName()).append("\n\n");
+
+        if (result.isFullyMatched()) {
+            md.append("**Result: ✅ FULLY MATCHED** (100%)\n\n");
+        } else {
+            md.append("**Result: ❌ DIFFERENCES FOUND** (").append(String.format("%.2f", result.getMatchPercentage())).append("%)\n");
+            if (result.hasCriticalDifferences()) {
+                md.append("  ❗ **Contains CRITICAL Differences**\n");
+            } else if (result.hasWarningDifferences()) {
+                md.append("  ⚠️ **Contains WARNINGS**\n");
+            }
+            md.append("\n");
+        }
+
+        md.append("### Overview\n");
+        md.append("- **Source Table:** `").append(result.getSourceTable().getSourceType()).append("`.`").append(result.getSourceTable().getTableName()).append("`\n");
+        md.append("- **Target Table:** `").append(result.getTargetTable().getSourceType()).append("`.`").append(result.getTargetTable().getTableName()).append("`\n");
+
+        if (tableConfig != null) {
+            if (tableConfig.getIgnoreFields() != null && !tableConfig.getIgnoreFields().isEmpty()) {
+                md.append("- **Ignored Fields:** `").append(String.join("`, `", tableConfig.getIgnoreFields())).append("`\n");
+            }
+            if (tableConfig.getIgnoreTypes() != null && !tableConfig.getIgnoreTypes().isEmpty()) {
+                md.append("- **Ignored Types:** `").append(String.join("`, `", tableConfig.getIgnoreTypes())).append("`\n");
+            }
+        }
+        md.append("\n");
+
+        if (!result.getTableDifferences().isEmpty()) {
+            md.append("### Ⅲ Table Property Differences\n");
+            md.append("| Property | Level | Source Value | Target Value |\n");
+            md.append("|----------|-------|--------------|--------------|\n");
+            for (TableDifference diff : result.getTableDifferences()) {
+                md.append("| `").append(diff.getPropertyName()).append("` ");
+                md.append("| ").append(formatDifferenceLevel(diff.getLevel())).append(" ");
+                md.append("| `").append(escapeMarkdown(String.valueOf(diff.getSourceValue()))).append("` ");
+                md.append("| `").append(escapeMarkdown(String.valueOf(diff.getTargetValue()))).append("` |\n");
+            }
+            md.append("\n");
+        }
+
+        if (!result.getColumnDifferences().isEmpty()) {
+            md.append("### Ⅱ Column Differences\n");
+            md.append("| Column Name | Type | Level | Details |\n");
+            md.append("|-------------|------|-------|---------|\n");
+            for (ColumnDifference diff : result.getColumnDifferences()) {
+                md.append("| `").append(diff.getColumnName()).append("` ");
+                md.append("| ").append(diff.getType()).append(" ");
+                md.append("| ").append(formatDifferenceLevel(diff.getLevel())).append(" ");
+                if (diff.getType() == CompareResult.DifferenceType.COLUMN_MISSING) {
+                    md.append("| Missing in ").append(diff.getSourceColumn() != null ? "target" : "source").append(" |\n");
+                } else {
+                    String details = diff.getPropertyDifferences().entrySet().stream()
+                        .map(entry -> String.format("`%s`: `%s` → `%s` (%s)", 
+                                     escapeMarkdown(entry.getKey()), 
+                                     escapeMarkdown(String.valueOf(entry.getValue().getSourceValue())), 
+                                     escapeMarkdown(String.valueOf(entry.getValue().getTargetValue())),
+                                     formatDifferenceLevel(entry.getValue().getLevel())))
+                        .collect(Collectors.joining("<br>"));
+                    md.append("| ").append(details).append(" |\n");
+                }
+            }
+            md.append("\n");
+        }
+
+        if (!result.getIndexDifferences().isEmpty()) {
+            md.append("### I Index Differences\n");
+            md.append("| Index Name | Type | Level | Details |\n");
+            md.append("|------------|------|-------|---------|\n");
+            for (IndexDifference diff : result.getIndexDifferences()) {
+                md.append("| `").append(diff.getIndexName()).append("` ");
+                md.append("| ").append(diff.getType()).append(" ");
+                md.append("| ").append(formatDifferenceLevel(diff.getLevel())).append(" ");
+                 if (diff.getType() == CompareResult.DifferenceType.INDEX_MISSING) {
+                    md.append("| Missing in ").append(diff.getSourceIndex() != null ? "target" : "source").append(" |\n");
+                } else {
+                     String details = diff.getPropertyDifferences().entrySet().stream()
+                        .map(entry -> String.format("`%s`: `%s` → `%s` (%s)",
+                                     escapeMarkdown(entry.getKey()), 
+                                     escapeMarkdown(String.valueOf(entry.getValue().getSourceValue())), 
+                                     escapeMarkdown(String.valueOf(entry.getValue().getTargetValue())),
+                                     formatDifferenceLevel(entry.getValue().getLevel())))
+                        .collect(Collectors.joining("<br>"));
+                    md.append("| ").append(details).append(" |\n");
+                }
+            }
+            md.append("\n");
+        }
+        md.append("---\n\n"); // Separator for multiple results
+        return md.toString();
+    }
+
+    private String formatDifferenceLevel(DifferenceLevel level) {
+        switch (level) {
+            case CRITICAL:
+                return "❗ CRITICAL";
+            case WARNING:
+                return "⚠️ WARNING";
+            case NOTICE:
+                return "ℹ️ NOTICE";
+            case ACCEPTABLE:
+                return "✅ ACCEPTABLE";
+            default:
+                return level.toString();
+        }
+    }
+
+    private String escapeMarkdown(String text) {
+        if (text == null) return "null";
+        return text.replace("|", "\\\\|").replace("`", "\\\\`").replace("*", "\\\\*").replace("_", "\\\\_").replace("[", "\\\\[").replace("]", "\\\\]");
     }
 } 

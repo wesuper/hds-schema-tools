@@ -33,6 +33,12 @@ jtools:
     config:
       auto-compare-on-startup: true
       verbose-output: true
+      enable-markdown-output: true
+      markdown-output-file-path: "compare-results-example.md"
+      load-from-external-yaml: false
+      external-yaml-config-file: "hdscompare-config-example.yml"
+      load-from-external-json: false
+      external-json-config-file: "hdscompare-config-example.json"
       compare-configs:
         - name: "mysql-to-tidb-compare"
           source-data-source:

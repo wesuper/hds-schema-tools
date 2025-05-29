@@ -1,0 +1,458 @@
+[
+  {
+    "name": "mysql-to-tidb-compare",
+    "sourceDataSource": {
+      "type": "mysql",
+      "dataSourceName": "mysqlDataSource"
+    },
+    "targetDataSource": {
+      "type": "tidb",
+      "dataSourceName": "tidbDataSource"
+    },
+    "tableConfigs": [
+      {
+        "sourceTableName": "fortune500_2018_2022",
+        "targetTableName": "fortune500_2018_2022",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      },
+      {
+        "sourceTableName": "employees",
+        "targetTableName": "employees",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "mysql-to-es-compare",
+    "sourceDataSource": {
+      "type": "mysql",
+      "dataSourceName": "mysqlDataSource"
+    },
+    "targetDataSource": {
+      "type": "elasticsearch",
+      "dataSourceName": "default_es"
+    },
+    "tableConfigs": [
+      {
+        "sourceTableName": "fortune500_2018_2022",
+        "targetTableName": "fortune500_2018_2022",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      },
+      {
+        "sourceTableName": "employees",
+        "targetTableName": "employees",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "INDEX"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "es-to-tidb-compare",
+    "sourceDataSource": {
+      "type": "elasticsearch",
+      "dataSourceName": "default_es"
+    },
+    "targetDataSource": {
+      "type": "tidb",
+      "dataSourceName": "tidbDataSource"
+    },
+    "tableConfigs": [
+      {
+        "sourceTableName": "fortune500_2018_2022",
+        "targetTableName": "fortune500_2018_2022",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT"
+        ]
+      },
+      {
+        "sourceTableName": "employees",
+        "targetTableName": "employees",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "INDEX"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "es-to-mysql-compare",
+    "sourceDataSource": {
+      "type": "elasticsearch",
+      "dataSourceName": "default_es"
+    },
+    "targetDataSource": {
+      "type": "mysql",
+      "dataSourceName": "mysqlDataSource"
+    },
+    "tableConfigs": [
+      {
+        "sourceTableName": "fortune500_2018_2022",
+        "targetTableName": "fortune500_2018_2022",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT"
+        ]
+      },
+      {
+        "sourceTableName": "employees",
+        "targetTableName": "employees",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "INDEX"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "es-to-es-compare",
+    "sourceDataSource": {
+      "type": "elasticsearch",
+      "dataSourceName": "default_es"
+    },
+    "targetDataSource": {
+      "type": "elasticsearch",
+      "dataSourceName": "default_es_2"
+    },
+    "tableConfigs": [
+      {
+        "sourceTableName": "fortune500_2018_2022",
+        "targetTableName": "fortune500_2018_2023",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "pojo-to-mysql-compare",
+    "sourceDataSource": {
+      "type": "pojo"
+    },
+    "targetDataSource": {
+      "type": "mysql",
+      "dataSourceName": "mysqlDataSource"
+    },
+    "tableConfigs": [
+      {
+        "sourceTableName": "org.wesuper.jtools.hdscompare.example.model.Fortune500",
+        "targetTableName": "fortune500_2018_2022",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      },
+      {
+        "sourceTableName": "org.wesuper.jtools.hdscompare.example.model.Employee",
+        "targetTableName": "employees",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "mysql-to-pojo-compare",
+    "sourceDataSource": {
+      "type": "mysql",
+      "dataSourceName": "mysqlDataSource"
+    },
+    "targetDataSource": {
+      "type": "pojo"
+    },
+    "tableConfigs": [
+      {
+        "sourceTableName": "fortune500_2018_2022",
+        "targetTableName": "org.wesuper.jtools.hdscompare.example.model.Fortune500",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      },
+      {
+        "sourceTableName": "employees",
+        "targetTableName": "org.wesuper.jtools.hdscompare.example.model.Employee",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "pojo-to-tidb-compare",
+    "sourceDataSource": {
+      "type": "pojo"
+    },
+    "targetDataSource": {
+      "type": "tidb",
+      "dataSourceName": "tidbDataSource"
+    },
+    "tableConfigs": [
+      {
+        "sourceTableName": "org.wesuper.jtools.hdscompare.example.model.Fortune500",
+        "targetTableName": "fortune500_2018_2022",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      },
+      {
+        "sourceTableName": "org.wesuper.jtools.hdscompare.example.model.Employee",
+        "targetTableName": "employees",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "tidb-to-pojo-compare",
+    "sourceDataSource": {
+      "type": "tidb",
+      "dataSourceName": "tidbDataSource"
+    },
+    "targetDataSource": {
+      "type": "pojo"
+    },
+    "tableConfigs": [
+      {
+        "sourceTableName": "fortune500_2018_2022",
+        "targetTableName": "org.wesuper.jtools.hdscompare.example.model.Fortune500",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      },
+      {
+        "sourceTableName": "employees",
+        "targetTableName": "org.wesuper.jtools.hdscompare.example.model.Employee",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "pojo-to-es-compare",
+    "sourceDataSource": {
+      "type": "pojo"
+    },
+    "targetDataSource": {
+      "type": "elasticsearch",
+      "dataSourceName": "default_es"
+    },
+    "tableConfigs": [
+      {
+        "sourceTableName": "org.wesuper.jtools.hdscompare.example.model.Fortune500",
+        "targetTableName": "fortune500_2018_2022",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      },
+      {
+        "sourceTableName": "org.wesuper.jtools.hdscompare.example.model.Employee",
+        "targetTableName": "employees",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "es-to-pojo-compare",
+    "sourceDataSource": {
+      "type": "elasticsearch",
+      "dataSourceName": "default_es"
+    },
+    "targetDataSource": {
+      "type": "pojo"
+    },
+    "tableConfigs": [
+      {
+        "sourceTableName": "fortune500_2018_2022",
+        "targetTableName": "org.wesuper.jtools.hdscompare.example.model.Fortune500",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      },
+      {
+        "sourceTableName": "employees",
+        "targetTableName": "org.wesuper.jtools.hdscompare.example.model.Employee",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "tidb-to-mysql-compare",
+    "sourceDataSource": {
+      "type": "tidb",
+      "dataSourceName": "tidbDataSource"
+    },
+    "targetDataSource": {
+      "type": "mysql",
+      "dataSourceName": "mysqlDataSource"
+    },
+    "tableConfigs": [
+      {
+        "sourceTableName": "fortune500_2018_2022",
+        "targetTableName": "fortune500_2018_2022",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      },
+      {
+        "sourceTableName": "employees",
+        "targetTableName": "employees",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "tidb-to-es-compare",
+    "sourceDataSource": {
+      "type": "tidb",
+      "dataSourceName": "tidbDataSource"
+    },
+    "targetDataSource": {
+      "type": "elasticsearch",
+      "dataSourceName": "default_es"
+    },
+    "tableConfigs": [
+      {
+        "sourceTableName": "fortune500_2018_2022",
+        "targetTableName": "fortune500_2018_2022",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "COMMENT",
+          "INDEX"
+        ]
+      },
+      {
+        "sourceTableName": "employees",
+        "targetTableName": "employees",
+        "ignoreFields": [
+          "create_time",
+          "update_time"
+        ],
+        "ignoreTypes": [
+          "INDEX"
+        ]
+      }
+    ]
+  }
+] 

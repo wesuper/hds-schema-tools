@@ -5,18 +5,18 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
 import org.wesuper.jtools.hdscompare.model.ColumnStructure;
 import org.wesuper.jtools.hdscompare.model.TableStructure;
 import org.wesuper.jtools.hdscompare.constants.DatabaseType;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+// import java.lang.reflect.Method; // Method import is not used
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap; // Added for caching
 
 // Imports for class names used in static block
 import java.math.BigDecimal;
@@ -33,12 +33,12 @@ import java.sql.Timestamp;
  * @author vincentruan
  * @version 1.0.0
  */
-@Component
 public class PojoTableStructureExtractor implements TableStructureExtractor {
 
     private static final Logger logger = LoggerFactory.getLogger(PojoTableStructureExtractor.class);
     
     private static final String TYPE = DatabaseType.POJO;
+    private final Map<String, TableStructure> pojoCache = new ConcurrentHashMap<>(); // Cache for POJO structures
     
     // 使用Guava的Multimap优化Java类型到数据库类型的映射
     private static final Multimap<String, String> JAVA_TO_MYSQL_TYPE_MAPPING = ArrayListMultimap.create();
@@ -110,6 +110,16 @@ public class PojoTableStructureExtractor implements TableStructureExtractor {
     
     @Override
     public TableStructure extractTableStructure(DataSourceCompareConfig.DataSourceConfig dataSourceConfig, String className) throws Exception {
+        // Check cache first
+        TableStructure cachedStructure = pojoCache.get(className);
+        if (cachedStructure != null) {
+            logger.info("Returning cached structure for POJO class: {}", className);
+            // Return a deep copy to prevent modification of cached object if necessary, 
+            // or ensure TableStructure and its components are immutable or defensively copied.
+            // For now, returning direct reference assuming it's handled or not an issue.
+            return cachedStructure; 
+        }
+
         logger.info("Extracting structure for POJO class: {}", className);
         
         Class<?> clazz = Class.forName(className);
@@ -139,6 +149,8 @@ public class PojoTableStructureExtractor implements TableStructureExtractor {
             }
         }
         
+        // Store in cache before returning
+        pojoCache.put(className, tableStructure);
         return tableStructure;
     }
     
