@@ -1,34 +1,33 @@
 package org.immortal.hydra.hdstbcomp.extractor;
 
-import org.immortal.hydra.hdstbcomp.config.DataSourceConfig;
-import org.immortal.hydra.hdstbcomp.model.IndexStructure;
-import org.immortal.hydra.hdstbcomp.model.TableStructure;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.lookup.DataSourceLookupFailureException;
+import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
+import org.wesuper.jtools.hdscompare.extractor.MySqlTableStructureExtractor;
+import org.wesuper.jtools.hdscompare.model.IndexStructure;
+import org.wesuper.jtools.hdscompare.model.TableStructure;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
  * MySQL表结构提取器错误处理单元测试
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class MySqlTableStructureExtractorErrorHandlingTest {
 
     @InjectMocks
@@ -49,7 +48,7 @@ public class MySqlTableStructureExtractorErrorHandlingTest {
     @Mock
     private ResultSet indexResultSet;
 
-    @Before
+    @BeforeEach
     public void setup() throws Exception {
         // 设置基本的mock行为
         when(dataSourceMap.get(anyString())).thenReturn(dataSource);
@@ -79,17 +78,16 @@ public class MySqlTableStructureExtractorErrorHandlingTest {
                 .thenThrow(new SQLException("Test SQL exception in index extraction"));
         
         // 创建表配置
-        DataSourceConfig.TableConfig tableConfig = new DataSourceConfig.TableConfig();
-        tableConfig.setType("mysql");
-        tableConfig.setDataSourceName("dataSource");
-        tableConfig.setTableName("test_table");
+        DataSourceCompareConfig.DataSourceConfig dataSourceConfig = new DataSourceCompareConfig.DataSourceConfig();
+        dataSourceConfig.setType("mysql");
+        dataSourceConfig.setDataSourceName("dataSource");
         
         // 提取表结构 - 应该能处理异常并继续
-        TableStructure tableStructure = extractor.extractTableStructure(tableConfig);
+        TableStructure tableStructure = extractor.extractTableStructure(dataSourceConfig, "test_table");
         
         // 验证即使有异常，也应该有索引数据
         List<IndexStructure> indexes = tableStructure.getIndexes();
-        assertNotNull("即使有异常，索引列表也不应为空", indexes);
+        assertNotNull(indexes, "即使有异常，索引列表也不应为空");
         
         // 查找测试索引
         IndexStructure testIndex = indexes.stream()
@@ -97,25 +95,26 @@ public class MySqlTableStructureExtractorErrorHandlingTest {
                 .findFirst()
                 .orElse(null);
         
-        assertNotNull("应该提取到测试索引", testIndex);
+        assertNotNull(testIndex, "应该提取到测试索引");
         // 验证默认值是否正确设置 (在异常处理中应该设置这些值)
-        assertFalse("异常时unique应默认设为false", testIndex.isUnique());
-        assertEquals("异常时索引类型应默认为NORMAL", "NORMAL", testIndex.getIndexType());
+        assertFalse(testIndex.isUnique(), "异常时unique应默认设为false");
+        assertEquals("NORMAL", testIndex.getIndexType(), "异常时索引类型应默认为NORMAL");
     }
 
-    @Test(expected = DataSourceLookupFailureException.class)
+    @Test
     public void testDataSourceNotFound() throws Exception {
         // 模拟数据源未找到的情况
         when(dataSourceMap.get(anyString())).thenReturn(null);
         
         // 创建表配置
-        DataSourceConfig.TableConfig tableConfig = new DataSourceConfig.TableConfig();
-        tableConfig.setType("mysql");
-        tableConfig.setDataSourceName("nonexistent");
-        tableConfig.setTableName("test_table");
+        DataSourceCompareConfig.DataSourceConfig dataSourceConfig = new DataSourceCompareConfig.DataSourceConfig();
+        dataSourceConfig.setType("mysql");
+        dataSourceConfig.setDataSourceName("nonexistent");
         
         // 尝试提取表结构 - 应该抛出DataSourceLookupFailureException
-        extractor.extractTableStructure(tableConfig);
+        assertThrows(DataSourceLookupFailureException.class, () -> {
+            extractor.extractTableStructure(dataSourceConfig, "test_table");
+        }, "未找到数据源时应抛出DataSourceLookupFailureException");
     }
 
     /**
