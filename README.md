@@ -34,10 +34,10 @@ graph TD
     D --> E[MySQL Extractor]
     D --> F[TiDB Extractor]
     D --> G[Elasticsearch Extractor]
-    D --> P[POJO Extractor]       # 新增 POJO Extractor
+    D --> P[POJO Extractor]
     C --> H[CompareResult]
     H --> I[输出比对报告 (控制台)]
-    H --> M[输出比对报告 (Markdown 文件)] # 新增 Markdown 输出
+    H --> M[输出比对报告 (Markdown 文件)]
 ```
 
 ## 配置说明
