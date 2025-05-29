@@ -7,4 +7,5 @@ public class DatabaseType {
     public static final String MYSQL = "mysql";
     public static final String TIDB = "tidb";
     public static final String ELASTICSEARCH = "elasticsearch";
+    public static final String POJO = "pojo";
 } 

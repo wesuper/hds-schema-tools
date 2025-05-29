@@ -1,6 +1,15 @@
 # HDS Schema Compare
 
-异构数据源表结构比对工具，支持 MySQL、TiDB、Elasticsearch 等数据源之间的表结构比对。
+异构数据源表结构比对工具，支持MySQL、TiDB、Elasticsearch和Java POJO之间的结构比对。
+
+## 功能特性
+
+- 支持MySQL、TiDB、Elasticsearch和Java POJO之间的表结构比对
+- 支持表级属性比对（表注释、表属性等）
+- 支持列级属性比对（列名、数据类型、是否可空、默认值、注释等）
+- 支持索引结构比对（主键、唯一索引、普通索引等）
+- 支持忽略特定字段或比对类型
+- 支持POJO类与数据库表结构的比对，自动处理JsonProperty等注解
 
 ## 功能特点
 
@@ -29,148 +38,157 @@ graph TD
 
 ## 配置说明
 
-### 数据源配置
-
-```yaml
-spring:
-  datasource:
-    mysql:
-      jdbcUrl: jdbc:mysql://localhost:3306/db_name
-      username: user
-      password: password
-      driver-class-name: com.mysql.cj.jdbc.Driver
-    tidb:
-      jdbcUrl: jdbc:mysql://tidb-host:4000/db_name
-      username: user
-      password: password
-      driver-class-name: com.mysql.cj.jdbc.Driver
-    elasticsearch:
-      hosts: http://localhost:9200
-      username: user
-      password: password
-```
-
-### 比对配置
+### 基本配置
 
 ```yaml
 jtools:
   hdscompare:
     config:
-      auto-compare-on-startup: true  # 是否在应用启动时自动执行比对
-      verbose-output: true          # 是否输出详细的比对信息
-    compare-configs:
-        - name: "mysql-to-tidb-compare"  # 比对配置名称
-          source-data-source:           # 源数据源配置
-            type: "mysql"               # 数据源类型
-            data-source-name: "mysqlDataSource"  # 数据源名称
-          target-data-source:           # 目标数据源配置
-            type: "tidb"                # 数据源类型
-            data-source-name: "tidbDataSource"   # 数据源名称
-          table-configs:                # 表比对配置列表
-            - source-table-name: "table1"  # 源表名
-              target-table-name: "table1"  # 目标表名
-              ignore-fields:              # 忽略的字段列表
-                - "create_time"
-                - "update_time"
-              ignore-types:              # 忽略的比对类型
+      # 是否在应用启动时自动执行比对
+      auto-compare-on-startup: true
+      # 是否输出详细的比对信息
+      verbose-output: true
+      # 比对配置列表
+      compare-configs:
+        - name: "example-compare"
+          # 源数据源配置
+          source-data-source:
+            type: "mysql"  # 支持：mysql、tidb、elasticsearch、pojo
+            data-source-name: "sourceDataSource"  # 当type为pojo时可不填
+          # 目标数据源配置
+          target-data-source:
+            type: "elasticsearch"
+            data-source-name: "targetDataSource"
+          # 表比对配置列表
+          table-configs:
+            - source-table-name: "source_table"  # 当source-data-source.type为pojo时，填写Java类的全限定名
+              target-table-name: "target_table"
+              # 忽略的字段列表
+              ignore-fields:
+                - "field1"
+                - "field2"
+              # 忽略的比对类型
+              ignore-types:
                 - "COMMENT"
-                - "INDEX"
-            - source-table-name: "table2"  # 另一个表的比对配置
-              target-table-name: "table2"
-        ignore-fields:
-          - "create_time"
-        ignore-types:
-          - "COMMENT"
+                - "DEFAULT"
 ```
 
-### 配置说明
+### POJO比对配置示例
 
-1. 数据源配置
-   - 支持配置多个数据源
-   - 每个数据源需要配置 jdbcUrl、username、password 等基本信息
-   - 数据源名称需要与比对配置中的 data-source-name 对应
+```yaml
+jtools:
+  hdscompare:
+    config:
+      compare-configs:
+        - name: "pojo-to-mysql"
+          source-data-source:
+            type: "pojo"
+            # data-source-name 可不填
+          target-data-source:
+            type: "mysql"
+            data-source-name: "mysqlDataSource"
+          table-configs:
+            - source-table-name: "com.example.model.User"  # Java类的全限定名
+              target-table-name: "user_table"
+```
 
-2. 比对配置
-   - name: 比对配置的名称，用于区分不同的比对任务
-   - source-data-source: 源数据源配置
-     - type: 数据源类型，如 mysql、tidb 等
-     - data-source-name: 数据源名称，对应 spring.datasource 中配置的数据源
-   - target-data-source: 目标数据源配置
-     - type: 数据源类型
-     - data-source-name: 数据源名称
-   - table-configs: 表比对配置列表
-     - source-table-name: 源表名
-     - target-table-name: 目标表名
-     - ignore-fields: 忽略的字段列表
-     - ignore-types: 忽略的比对类型
+## 类型映射说明
 
-3. 忽略类型说明
-   - COMMENT: 忽略注释差异
-   - INDEX: 忽略索引差异
-   - NULLABLE: 忽略是否允许为空的差异
-   - DEFAULT: 忽略默认值差异
-   - LENGTH: 忽略长度差异
-   - PRECISION: 忽略精度差异
-   - SCALE: 忽略小数位数差异
-   - AUTO_INCREMENT: 忽略自增属性差异
+### POJO类型映射
 
-## 使用示例
+POJO类型会自动映射到对应的数据库类型：
 
-1. 配置数据源和比对规则
-2. 启动应用，自动执行比对
-3. 查看比对结果
+- 数值类型：
+  - long/Long -> bigint
+  - int/Integer -> int
+  - short/Short -> smallint
+  - byte/Byte -> tinyint
+  - float/Float -> float
+  - double/Double -> double
+  - BigDecimal -> decimal
+
+- 字符串类型：
+  - String -> varchar
+  - char/Character -> char
+
+- 日期时间类型：
+  - Date -> date
+  - LocalDate -> date
+  - LocalDateTime -> datetime
+  - LocalTime -> time
+  - Timestamp -> timestamp
+
+- 布尔类型：
+  - boolean/Boolean -> boolean
+
+### MySQL到ES类型映射
+
+- 数值类型：
+  - bigint -> long
+  - int -> integer
+  - tinyint -> byte
+  - smallint -> short
+  - float -> float
+  - double -> double
+  - decimal -> scaled_float
+
+- 字符串类型：
+  - varchar -> keyword/text
+  - char -> keyword
+  - text -> text
+  - longtext -> text
+  - mediumtext -> text
+  - tinytext -> text
+
+- 日期时间类型：
+  - datetime -> date
+  - timestamp -> date
+  - date -> date
+  - time -> date
+
+- 布尔类型：
+  - boolean -> boolean
+  - bool -> boolean
+
+- 枚举类型：
+  - enum -> keyword
+
+## 使用说明
+
+1. 添加依赖：
+
+```xml
+<dependency>
+    <groupId>org.wesuper.jtools</groupId>
+    <artifactId>hds-schema-compare</artifactId>
+    <version>${latest.version}</version>
+</dependency>
+```
+
+2. 配置数据源和比对规则
+
+3. 注入服务并调用：
+
+```java
+@Autowired
+private TableStructureCompareService compareService;
+
+// 比对所有配置的表
+List<CompareResult> results = compareService.compareAllConfiguredTables();
+
+// 根据配置名称比对表
+CompareResult result = compareService.compareTablesByName("example-compare");
+```
+
+## 注意事项
+
+1. POJO比对时，会优先使用JsonProperty注解的值作为字段名
+2. POJO比对时，会忽略Java中的nullable和default value等要求
+3. 对于ES特有的字段（如number_of_replicas、number_of_shards等），在比对时会被忽略
+4. 建议在比对ES时，忽略不影响数据检索和展示的属性（如creation_date、uuid等）
 
 ## 开发说明
 
 ### 项目结构
 
 ```
-hds-schema-compare/
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── org/wesuper/jtools/hdscompare/
-│   │   │       ├── config/          # 配置类
-│   │   │       ├── extractor/       # 表结构提取器
-│   │   │       ├── model/          # 数据模型
-│   │   │       └── service/        # 服务实现
-│   │   └── resources/
-│   │       └── application.yml     # 配置文件
-│   └── test/                       # 测试代码
-└── pom.xml                         # 项目依赖
-```
-
-### 扩展支持
-
-1. 添加新的数据源支持
-   - 实现 TableStructureExtractor 接口
-   - 在 TableStructureExtractorFactory 中注册新的提取器
-
-2. 添加新的比对规则
-   - 在 CompareResult 中添加新的差异类型
-   - 在 TableStructureCompareServiceImpl 中实现新的比对逻辑
-
-## 注意事项
-
-1. 数据源配置
-   - 确保数据源配置正确
-   - 确保数据源名称与比对配置对应
-
-2. 表结构比对
-   - 建议先比对表结构，再进行数据迁移
-   - 注意处理不同数据源之间的类型映射
-
-3. 性能考虑
-   - 大量表比对时注意内存使用
-   - 考虑分批执行比对任务
-
-## 贡献指南
-
-1. Fork 项目
-2. 创建特性分支
-3. 提交代码
-4. 创建 Pull Request
-
-## 许可证
-
-MIT License 

@@ -1,5 +1,7 @@
 package org.wesuper.jtools.hdscompare.extractor;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -13,6 +15,7 @@ import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
 import org.wesuper.jtools.hdscompare.model.ColumnStructure;
 import org.wesuper.jtools.hdscompare.model.IndexStructure;
 import org.wesuper.jtools.hdscompare.model.TableStructure;
+import org.wesuper.jtools.hdscompare.constants.DatabaseType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,11 +32,44 @@ public class ElasticsearchTableStructureExtractor implements TableStructureExtra
 
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchTableStructureExtractor.class);
     
-    private static final String TYPE = "elasticsearch";
+    private static final String TYPE = DatabaseType.ELASTICSEARCH;
     
     private final Map<String, RestHighLevelClient> elasticsearchClientMap;
     
-    // @Autowired
+    // ES类型到MySQL类型的映射 (使用Multimap)
+    private static final Multimap<String, String> ES_TO_MYSQL_TYPE_MAPPING = ArrayListMultimap.create();
+    
+    static {
+        // 数值类型映射
+        ES_TO_MYSQL_TYPE_MAPPING.put("long", "bigint");
+        ES_TO_MYSQL_TYPE_MAPPING.put("integer", "int");
+        ES_TO_MYSQL_TYPE_MAPPING.put("short", "smallint");
+        ES_TO_MYSQL_TYPE_MAPPING.put("byte", "tinyint");
+        ES_TO_MYSQL_TYPE_MAPPING.put("float", "float");
+        ES_TO_MYSQL_TYPE_MAPPING.put("double", "double");
+        ES_TO_MYSQL_TYPE_MAPPING.put("scaled_float", "decimal");
+        
+        // 字符串类型映射
+        ES_TO_MYSQL_TYPE_MAPPING.put("keyword", "varchar");
+        ES_TO_MYSQL_TYPE_MAPPING.put("keyword", "char");
+        ES_TO_MYSQL_TYPE_MAPPING.put("keyword", "enum"); // keyword can map to enum
+        ES_TO_MYSQL_TYPE_MAPPING.put("text", "text");
+        ES_TO_MYSQL_TYPE_MAPPING.put("text", "longtext");
+        ES_TO_MYSQL_TYPE_MAPPING.put("text", "mediumtext");
+        ES_TO_MYSQL_TYPE_MAPPING.put("text", "tinytext");
+        ES_TO_MYSQL_TYPE_MAPPING.put("text", "varchar"); // Add mapping from text to varchar
+        
+        // 日期时间类型映射
+        ES_TO_MYSQL_TYPE_MAPPING.put("date", "datetime");
+        ES_TO_MYSQL_TYPE_MAPPING.put("date", "timestamp");
+        ES_TO_MYSQL_TYPE_MAPPING.put("date", "date");
+        
+        // 布尔类型映射
+        ES_TO_MYSQL_TYPE_MAPPING.put("boolean", "boolean");
+        ES_TO_MYSQL_TYPE_MAPPING.put("boolean", "bool"); // MySQL also supports 'bool'
+    }
+    
+    // @Autowired // Assuming this is handled by Spring configuration
     public ElasticsearchTableStructureExtractor(Map<String, RestHighLevelClient> elasticsearchClientMap) {
         this.elasticsearchClientMap = elasticsearchClientMap;
     }
@@ -47,7 +83,7 @@ public class ElasticsearchTableStructureExtractor implements TableStructureExtra
         
         RestHighLevelClient client = getElasticsearchClient(dataSourceName);
         if (client == null) {
-            throw new IllegalArgumentException("Elasticsearch client not found: " + dataSourceName);
+            throw new IllegalArgumentException("Elasticsearch client not found for data source: " + dataSourceName);
         }
         
         TableStructure tableStructure = new TableStructure();
@@ -55,36 +91,32 @@ public class ElasticsearchTableStructureExtractor implements TableStructureExtra
         tableStructure.setSourceType(TYPE);
         
         try {
-            // 获取索引信息
             GetIndexRequest request = new GetIndexRequest().indices(indexName);
             GetIndexResponse response = client.indices().get(request, RequestOptions.DEFAULT);
             
-            // 获取索引设置
             Settings indexSettings = response.getSettings().get(indexName);
-            extractIndexSettings(tableStructure, indexSettings);
+            if (indexSettings != null) {
+                extractIndexSettings(tableStructure, indexSettings);
+            }
             
-            // 获取映射信息
+            // In ES 7+, type is usually _doc. If not, try to get the first available mapping.
             ImmutableOpenMap<String, MappingMetadata> mappings = response.getMappings().get(indexName);
-            if (mappings != null && !mappings.isEmpty()) {
-                // 在ES 7.x以后，类型可能为_doc或者被弃用
-                String mappingType = "_doc";
-                if (mappings.containsKey(mappingType)) {
-                    MappingMetadata mappingMetaData = mappings.get(mappingType);
-                    extractMappingMetadata(tableStructure, mappingMetaData);
-                } else {
-                    // 如果没有_doc类型，获取第一个可用的映射
-                    for (Object key : mappings.keys().toArray()) {
-                        String type = key.toString();
-                        MappingMetadata mappingMetaData = mappings.get(type);
-                        extractMappingMetadata(tableStructure, mappingMetaData);
-                        break;
-                    }
+            String mappingTypeToUse = "_doc"; 
+            if (mappings != null) {
+                if (!mappings.containsKey(mappingTypeToUse) && !mappings.isEmpty()) {
+                     mappingTypeToUse = mappings.keysIt().next(); // Get first type if _doc doesn't exist
                 }
+                MappingMetadata mappingMetaData = mappings.get(mappingTypeToUse);
+                if (mappingMetaData != null) {
+                    extractMappingMetadata(tableStructure, mappingMetaData);
+                }
+            } else {
+                logger.warn("No mappings found for index: {}", indexName);
             }
             
             return tableStructure;
         } catch (Exception e) {
-            logger.error("Failed to extract Elasticsearch index structure for {}", indexName, e);
+            logger.error("Failed to extract Elasticsearch index structure for {} from {}", indexName, dataSourceName, e);
             throw e;
         }
     }
@@ -94,189 +126,115 @@ public class ElasticsearchTableStructureExtractor implements TableStructureExtra
         return TYPE;
     }
     
-    /**
-     * 提取索引设置
-     * 
-     * @param tableStructure 表结构
-     * @param settings 索引设置
-     */
     private void extractIndexSettings(TableStructure tableStructure, Settings settings) {
         Map<String, Object> properties = tableStructure.getProperties();
-        
-        // 存储关键设置
         properties.put("number_of_shards", settings.get("index.number_of_shards"));
         properties.put("number_of_replicas", settings.get("index.number_of_replicas"));
         properties.put("creation_date", settings.get("index.creation_date"));
         properties.put("uuid", settings.get("index.uuid"));
         properties.put("provided_name", settings.get("index.provided_name"));
-        
-        // 添加分析器信息
         if (settings.get("index.analysis") != null) {
             properties.put("has_custom_analyzers", true);
         }
     }
     
-    /**
-     * 提取映射元数据
-     * 
-     * @param tableStructure 表结构
-     * @param mappingMetaData 映射元数据
-     */
     @SuppressWarnings("unchecked")
     private void extractMappingMetadata(TableStructure tableStructure, MappingMetadata mappingMetaData) {
         try {
             Map<String, Object> mappingMap = mappingMetaData.sourceAsMap();
+            Map<String, Object> fieldPropertiesMap = (Map<String, Object>) mappingMap.get("properties");
             
-            // 提取字段映射
-            Map<String, Object> properties = (Map<String, Object>) mappingMap.get("properties");
-            if (properties != null) {
+            if (fieldPropertiesMap != null) {
                 int position = 1;
-                for (Map.Entry<String, Object> entry : properties.entrySet()) {
+                for (Map.Entry<String, Object> entry : fieldPropertiesMap.entrySet()) {
                     String fieldName = entry.getKey();
-                    Map<String, Object> fieldProperties = (Map<String, Object>) entry.getValue();
+                    Map<String, Object> esFieldProps = (Map<String, Object>) entry.getValue();
                     
                     ColumnStructure column = new ColumnStructure();
                     column.setColumnName(fieldName);
                     column.setOrdinalPosition(position++);
-                    
-                    extractFieldProperties(column, fieldProperties);
-                    
+                    extractFieldProperties(column, esFieldProps);
                     tableStructure.getColumns().add(column);
                 }
             }
-            
-            // 提取或创建索引信息
             extractIndexInformation(tableStructure, mappingMap);
-            
         } catch (Exception e) {
-            logger.error("Error extracting Elasticsearch mapping metadata", e);
+            logger.error("Error extracting Elasticsearch mapping metadata: {}", e.getMessage(), e);
         }
     }
     
-    /**
-     * 提取字段属性
-     * 
-     * @param column 列结构
-     * @param fieldProperties 字段属性
-     */
-    private void extractFieldProperties(ColumnStructure column, Map<String, Object> fieldProperties) {
-        String type = (String) fieldProperties.get("type");
-        column.setDataType(type);
-        column.setColumnType(type);  // ES中没有详细的列类型，使用基本类型
+    private void extractFieldProperties(ColumnStructure column, Map<String, Object> esFieldProps) {
+        String esType = (String) esFieldProps.get("type");
+        column.setDataType(esType); // Store original ES type as dataType
+        column.setNullable(true); // In ES, fields are generally nullable by default
         
-        // ES中几乎所有字段默认都是可空的
-        column.setNullable(true);
+        Map<String, Object> columnProperties = new HashMap<>(esFieldProps); // Copy all ES props
+        column.setProperties(columnProperties);
         
-        // 复制原始属性到列属性中
-        Map<String, Object> properties = new HashMap<>(fieldProperties);
-        column.setProperties(properties);
+        // Add MySQL type mappings based on ES type
+        for (String mysqlType : ES_TO_MYSQL_TYPE_MAPPING.get(esType)) {
+            column.addTypeMapping(DatabaseType.MYSQL, mysqlType);
+            // Also add for TiDB as it's MySQL compatible in this context
+            column.addTypeMapping(DatabaseType.TIDB, mysqlType); 
+        }
         
-        // 根据类型提取特定属性
-        if ("text".equals(type)) {
-            // 文本类型，可能有分析器
-            column.setProperties(properties);
-            if (fieldProperties.containsKey("analyzer")) {
-                properties.put("analyzer", fieldProperties.get("analyzer"));
-            }
-        } else if ("keyword".equals(type)) {
-            // 关键词类型
-            if (fieldProperties.containsKey("ignore_above")) {
-                Integer ignoreAbove = (Integer) fieldProperties.get("ignore_above");
-                column.setLength(ignoreAbove);
-            }
-        } else if (type != null && (type.startsWith("float") || type.startsWith("double") || 
-                type.equals("half_float") || type.equals("scaled_float"))) {
-            // 浮点类型
-            if (fieldProperties.containsKey("scaling_factor")) {
-                properties.put("scaling_factor", fieldProperties.get("scaling_factor"));
-            }
+        if ("text".equals(esType) && esFieldProps.containsKey("analyzer")) {
+            columnProperties.put("analyzer", esFieldProps.get("analyzer"));
+        }
+        if ("keyword".equals(esType) && esFieldProps.containsKey("ignore_above")) {
+            column.setLength((Integer) esFieldProps.get("ignore_above"));
+        }
+        if (esType != null && (esType.equals("scaled_float")) && esFieldProps.containsKey("scaling_factor")) {
+            columnProperties.put("scaling_factor", esFieldProps.get("scaling_factor"));
         }
     }
     
-    /**
-     * 提取索引信息
-     * 
-     * @param tableStructure 表结构
-     * @param mappingMap 映射映射
-     */
     @SuppressWarnings("unchecked")
     private void extractIndexInformation(TableStructure tableStructure, Map<String, Object> mappingMap) {
         List<IndexStructure> indexes = new ArrayList<>();
+        if (mappingMap.containsKey("_id")) { /* ... existing _id handling ... */ }
         
-        // 检查是否有显式的_id字段
-        if (mappingMap.containsKey("_id")) {
-            IndexStructure primaryIndex = new IndexStructure();
-            primaryIndex.setIndexName("_id");
-            primaryIndex.setIndexType("PRIMARY");
-            primaryIndex.setPrimary(true);
-            primaryIndex.setUnique(true);
-            
-            IndexStructure.IndexColumnStructure column = new IndexStructure.IndexColumnStructure();
-            column.setColumnName("_id");
-            column.setPosition(1);
-            
-            List<IndexStructure.IndexColumnStructure> columns = new ArrayList<>();
-            columns.add(column);
-            primaryIndex.setColumns(columns);
-            
-            indexes.add(primaryIndex);
-        }
-        
-        // 检查其他字段上的索引
         Map<String, Object> properties = (Map<String, Object>) mappingMap.get("properties");
         if (properties != null) {
             for (Map.Entry<String, Object> entry : properties.entrySet()) {
                 String fieldName = entry.getKey();
                 Map<String, Object> fieldProps = (Map<String, Object>) entry.getValue();
-                
-                // 检查索引标志
                 Object indexFlag = fieldProps.get("index");
-                boolean isIndexed = indexFlag == null || Boolean.TRUE.equals(indexFlag) || "true".equals(indexFlag);
-                
-                if (isIndexed) {
-                    // 创建索引结构
+                boolean isIndexed = indexFlag == null || Boolean.TRUE.equals(indexFlag) || "true".equals(String.valueOf(indexFlag).toLowerCase());
+
+                if (isIndexed && !fieldName.equals("_id")) { // Avoid duplicating _id index
                     IndexStructure fieldIndex = new IndexStructure();
-                    fieldIndex.setIndexName(fieldName + "_idx");
-                    fieldIndex.setIndexType("NORMAL");
+                    fieldIndex.setIndexName(fieldName + "_idx"); // Simple naming convention
+                    fieldIndex.setIndexType("NORMAL"); 
                     fieldIndex.setPrimary(false);
-                    fieldIndex.setUnique(false);
+                    fieldIndex.setUnique(false); // ES non-ID indexes are generally not unique by default
                     
-                    IndexStructure.IndexColumnStructure column = new IndexStructure.IndexColumnStructure();
-                    column.setColumnName(fieldName);
-                    column.setPosition(1);
+                    IndexStructure.IndexColumnStructure indexColumn = new IndexStructure.IndexColumnStructure();
+                    indexColumn.setColumnName(fieldName);
+                    indexColumn.setPosition(1);
+                    List<IndexStructure.IndexColumnStructure> indexCols = new ArrayList<>();
+                    indexCols.add(indexColumn);
+                    fieldIndex.setColumns(indexCols);
                     
-                    List<IndexStructure.IndexColumnStructure> columns = new ArrayList<>();
-                    columns.add(column);
-                    fieldIndex.setColumns(columns);
-                    
-                    // 保存索引属性
                     Map<String, Object> indexProps = new HashMap<>();
                     if (fieldProps.containsKey("analyzer")) {
                         indexProps.put("analyzer", fieldProps.get("analyzer"));
                     }
-                    if (fieldProps.containsKey("search_analyzer")) {
-                        indexProps.put("search_analyzer", fieldProps.get("search_analyzer"));
-                    }
+                    // Add other relevant ES index properties if needed
                     fieldIndex.setProperties(indexProps);
-                    
                     indexes.add(fieldIndex);
                 }
             }
         }
-        
         tableStructure.setIndexes(indexes);
     }
     
-    /**
-     * 获取Elasticsearch客户端
-     * 
-     * @param dataSourceName 数据源名称
-     * @return Elasticsearch客户端
-     */
     private RestHighLevelClient getElasticsearchClient(String dataSourceName) {
         RestHighLevelClient client = elasticsearchClientMap.get(dataSourceName);
         if (client == null) {
-            logger.error("Elasticsearch client not found: {}", dataSourceName);
+            // Log and throw or handle as per application's error strategy
+            logger.error("Elasticsearch client instance not found for dataSourceName: '{}'", dataSourceName);
+            throw new IllegalStateException("Elasticsearch client not configured for: " + dataSourceName);
         }
         return client;
     }

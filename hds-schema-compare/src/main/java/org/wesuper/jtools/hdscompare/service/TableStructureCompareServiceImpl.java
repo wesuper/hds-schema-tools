@@ -54,9 +54,6 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
     @Autowired
     private TableStructureExtractorFactory extractorFactory;
 
-    // 使用Guava的Multimap优化MySQL和ES类型映射
-    private static final Multimap<String, String> MYSQL_TO_ES_TYPE_MAPPING = ArrayListMultimap.create();
-    
     // ES特有的字段列表，在MySQL中不会出现
     private static final Set<String> ES_SPECIFIC_FIELDS = new HashSet<>(Arrays.asList(
         "number_of_replicas",
@@ -68,57 +65,34 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
         "analyzer",
         "search_analyzer",
         "ignore_above",
-        "scaling_factor"
+        "scaling_factor",
+        "_meta",
+        "_source",
+        "_all",
+        "_routing",
+        "_parent",
+        "_field_names",
+        "dynamic",
+        "dynamic_templates",
+        "properties",
+        "include_in_all",
+        "copy_to",
+        "fields",
+        "format",
+        "ignore_malformed",
+        "index_options",
+        "norms",
+        "null_value",
+        "position_increment_gap",
+        "search_quote_analyzer",
+        "similarity",
+        "term_vector"
     ));
-    
-    // 使用Guava的Multimap优化ES到MySQL的类型映射
-    private static final Multimap<String, String> ES_TO_MYSQL_TYPE_MAPPING = ArrayListMultimap.create();
     
     // 静态成员区添加：
     private static final Pattern DEFAULT_PREFIX_PATTERN = Pattern.compile("^default\\s+", Pattern.CASE_INSENSITIVE);
     private static final Pattern LEADING_ZERO_PATTERN = Pattern.compile("^0+([1-9])");
     private static final Pattern TRAILING_ZERO_PATTERN = Pattern.compile("\\.0+$");
-    
-    static {
-        // 数值类型映射
-        MYSQL_TO_ES_TYPE_MAPPING.put("bigint", "long");
-        MYSQL_TO_ES_TYPE_MAPPING.put("int", "integer");
-        MYSQL_TO_ES_TYPE_MAPPING.put("tinyint", "byte");
-        MYSQL_TO_ES_TYPE_MAPPING.put("smallint", "short");
-        MYSQL_TO_ES_TYPE_MAPPING.put("float", "float");
-        MYSQL_TO_ES_TYPE_MAPPING.put("double", "double");
-        MYSQL_TO_ES_TYPE_MAPPING.put("decimal", "scaled_float");
-        
-        // 字符串类型映射
-        MYSQL_TO_ES_TYPE_MAPPING.put("varchar", "keyword");
-        MYSQL_TO_ES_TYPE_MAPPING.put("varchar", "text");
-        MYSQL_TO_ES_TYPE_MAPPING.put("char", "keyword");
-        MYSQL_TO_ES_TYPE_MAPPING.put("text", "text");
-        MYSQL_TO_ES_TYPE_MAPPING.put("longtext", "text");
-        MYSQL_TO_ES_TYPE_MAPPING.put("mediumtext", "text");
-        MYSQL_TO_ES_TYPE_MAPPING.put("tinytext", "text");
-        
-        // 日期时间类型映射
-        MYSQL_TO_ES_TYPE_MAPPING.put("datetime", "date");
-        MYSQL_TO_ES_TYPE_MAPPING.put("timestamp", "date");
-        MYSQL_TO_ES_TYPE_MAPPING.put("date", "date");
-        MYSQL_TO_ES_TYPE_MAPPING.put("time", "date");
-        
-        // 布尔类型映射
-        MYSQL_TO_ES_TYPE_MAPPING.put("boolean", "boolean");
-        MYSQL_TO_ES_TYPE_MAPPING.put("bool", "boolean");
-        
-        // 枚举类型映射
-        MYSQL_TO_ES_TYPE_MAPPING.put("enum", "keyword");
-
-        // 从MYSQL_TO_ES_TYPE_MAPPING生成ES_TO_MYSQL_TYPE_MAPPING
-        for (Map.Entry<String, Collection<String>> entry : MYSQL_TO_ES_TYPE_MAPPING.asMap().entrySet()) {
-            String mysqlType = entry.getKey();
-            for (String esType : entry.getValue()) {
-                ES_TO_MYSQL_TYPE_MAPPING.put(esType, mysqlType);
-            }
-        }
-    }
 
     @Override
     public CompareResult compareTableStructures(TableStructure sourceTable, TableStructure targetTable,
@@ -280,10 +254,18 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
     private void compareTableProperties(CompareResult result, DataSourceCompareConfig.CompareConfig config) {
         TableStructure sourceTable = result.getSourceTable();
         TableStructure targetTable = result.getTargetTable();
+        
+        String sourceType = sourceTable.getSourceType();
+        String targetType = targetTable.getSourceType();
+        
+        boolean sourceIsES = sourceType.equalsIgnoreCase(DatabaseType.ELASTICSEARCH);
+        boolean targetIsES = targetType.equalsIgnoreCase(DatabaseType.ELASTICSEARCH);
+        boolean sourceIsPOJO = sourceType.equalsIgnoreCase(DatabaseType.POJO);
+        boolean targetIsPOJO = targetType.equalsIgnoreCase(DatabaseType.POJO);
 
         // 检查表注释
         if (!isCommentEqual(sourceTable.getTableComment(), targetTable.getTableComment(),
-                sourceTable.getSourceType(), targetTable.getSourceType()) &&
+                sourceType, targetType) &&
                 !isIgnoredType(config, "COMMENT")) {
             TableDifference diff = new TableDifference(
                     DifferenceType.TABLE_PROPERTY_DIFFERENT,
@@ -299,33 +281,48 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
 
         // 比对表的特殊属性
         if (sourceTable.getProperties() != null && targetTable.getProperties() != null) {
-            for (Map.Entry<String, Object> entry : sourceTable.getProperties().entrySet()) {
-                String key = entry.getKey();
-                Object sourceValue = entry.getValue();
+            // 获取所有需要比对的属性键
+            Set<String> allPropertyKeys = new HashSet<>();
+            allPropertyKeys.addAll(sourceTable.getProperties().keySet());
+            allPropertyKeys.addAll(targetTable.getProperties().keySet());
+
+            for (String key : allPropertyKeys) {
+                Object sourceValue = sourceTable.getProperties().get(key);
                 Object targetValue = targetTable.getProperties().get(key);
 
                 // 如果是ES特有的字段，则跳过比对
-                if (isESToMySQLComparison(sourceTable.getSourceType(), targetTable.getSourceType()) && 
-                    ES_SPECIFIC_FIELDS.contains(key)) {
+                if ((sourceIsES || targetIsES) && ES_SPECIFIC_FIELDS.contains(key)) {
                     continue;
                 }
 
                 // 对于ES到ES的比对，跳过不影响数据检索和展示的属性
-                if (isESComparison(sourceTable.getSourceType(), targetTable.getSourceType()) && 
-                    isNonEssentialESProperty(key)) {
+                if (sourceIsES && targetIsES && isNonEssentialESProperty(key)) {
+                    continue;
+                }
+
+                // 对于POJO的比对，跳过一些特定属性
+                if ((sourceIsPOJO || targetIsPOJO) && isNonEssentialPOJOProperty(key)) {
                     continue;
                 }
 
                 // 对于comment属性，使用特殊的比对逻辑
                 if ("comment".equalsIgnoreCase(key)) {
                     if (isCommentEqual(String.valueOf(sourceValue), String.valueOf(targetValue),
-                            sourceTable.getSourceType(), targetTable.getSourceType())) {
+                            sourceType, targetType)) {
                         continue;
                     }
                 }
 
+                // 处理属性值差异
                 if (!Objects.equals(sourceValue, targetValue)) {
                     DifferenceLevel level = getDifferenceLevel(key, config);
+                    
+                    // 对于ES和POJO的比对，降低某些属性的差异级别
+                    if ((sourceIsES || targetIsES || sourceIsPOJO || targetIsPOJO) && 
+                        isReducibleProperty(key)) {
+                        level = DifferenceLevel.NOTICE;
+                    }
+
                     TableDifference diff = new TableDifference(
                             DifferenceType.TABLE_PROPERTY_DIFFERENT,
                             level,
@@ -345,14 +342,16 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
      * 判断是否为ES到MySQL的比对
      */
     private boolean isESToMySQLComparison(String sourceType, String targetType) {
-        return DatabaseType.ELASTICSEARCH.equalsIgnoreCase(sourceType) && isMySQLFamily(targetType);
+        return DatabaseType.ELASTICSEARCH.equalsIgnoreCase(sourceType) && 
+               (isMySQLFamily(targetType) || DatabaseType.POJO.equalsIgnoreCase(targetType));
     }
 
     /**
      * 判断是否为MySQL到ES的比对
      */
     private boolean isMySQLToESComparison(String sourceType, String targetType) {
-        return isMySQLFamily(sourceType) && DatabaseType.ELASTICSEARCH.equalsIgnoreCase(targetType);
+        return (isMySQLFamily(sourceType) || DatabaseType.POJO.equalsIgnoreCase(sourceType)) && 
+               DatabaseType.ELASTICSEARCH.equalsIgnoreCase(targetType);
     }
 
     /**
@@ -371,7 +370,36 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
                propertyName.equals("creation_date") ||
                propertyName.equals("uuid") ||
                propertyName.equals("provided_name") ||
-               propertyName.equals("version");
+               propertyName.equals("version") ||
+               propertyName.equals("_meta") ||
+               propertyName.equals("_source") ||
+               propertyName.equals("_all") ||
+               propertyName.equals("_routing") ||
+               propertyName.equals("_parent") ||
+               propertyName.equals("_field_names");
+    }
+
+    /**
+     * 判断是否为不影响数据检索和展示的POJO属性
+     */
+    private boolean isNonEssentialPOJOProperty(String propertyName) {
+        return propertyName.equals("javaType") ||
+               propertyName.equals("package") ||
+               propertyName.equals("superclass") ||
+               propertyName.equals("interfaces") ||
+               propertyName.equals("annotations");
+    }
+
+    /**
+     * 判断是否为可降低差异级别的属性
+     */
+    private boolean isReducibleProperty(String propertyName) {
+        return propertyName.equals("comment") ||
+               propertyName.equals("description") ||
+               propertyName.equals("label") ||
+               propertyName.equals("displayName") ||
+               propertyName.equals("format") ||
+               propertyName.equals("pattern");
     }
 
     /**
@@ -453,152 +481,184 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
             ColumnStructure sourceColumn, ColumnStructure targetColumn) {
         String columnName = sourceColumn.getColumnName();
 
-        // 获取当前表的配置
+        // Initial logging of received columns and their typeMappings (as added previously)
+        if (logger.isDebugEnabled()) {
+            logger.debug("Col '{}' (Source - {} - DataType: '{}') received in compareColumnDetails. TypeMappings:", 
+                         columnName, result.getSourceTable().getSourceType(), sourceColumn.getDataType());
+            if (sourceColumn.getTypeMappings() != null && !sourceColumn.getTypeMappings().isEmpty()) {
+                for (ColumnStructure.TypeMapping tm : sourceColumn.getTypeMappings()) {
+                    logger.debug("    - SourceCol '{}' Mapping: TargetDB='{}', MappedTypes={}", columnName, tm.getTargetType(), tm.getColumnTypes());
+                }
+            } else {
+                logger.debug("    - SourceCol '{}': No TypeMappings present or list is empty.", columnName);
+            }
+            String targetColumnName = targetColumn.getColumnName() != null ? targetColumn.getColumnName() : "UNKNOWN_TARGET_COL_NAME";
+            logger.debug("Col '{}' (Target - {} - DataType: '{}') received in compareColumnDetails. TypeMappings:", 
+                         targetColumnName, result.getTargetTable().getSourceType(), targetColumn.getDataType());
+            if (targetColumn.getTypeMappings() != null && !targetColumn.getTypeMappings().isEmpty()) {
+                for (ColumnStructure.TypeMapping tm : targetColumn.getTypeMappings()) {
+                    logger.debug("    - TargetCol '{}' Mapping: TargetDB='{}', MappedTypes={}", targetColumnName, tm.getTargetType(), tm.getColumnTypes());
+                }
+            } else {
+                logger.debug("    - TargetCol '{}': No TypeMappings present or list is empty.", targetColumnName);
+            }
+        }
+
         DataSourceCompareConfig.TableCompareConfig tableConfig = config.getTableConfigs().get(0);
         List<String> ignoreFields = tableConfig.getIgnoreFields();
 
-        // 如果是忽略的字段，直接返回
         if (ignoreFields != null && ignoreFields.contains(columnName)) {
             return;
         }
 
         boolean hasDifferences = false;
-        ColumnDifference columnDiff = null;
+        ColumnDifference columnDiff = null; 
 
-        // 检查数据类型
-        String sourceType = sourceColumn.getDataType();
-        String targetType = targetColumn.getDataType();
+        String sourceDbType = result.getSourceTable().getSourceType();
+        String targetDbType = result.getTargetTable().getSourceType();
         
-        // 处理MySQL和ES类型映射
-        boolean isMySQLToES = isMySQLToESComparison(result.getSourceTable().getSourceType(), 
-                                                  result.getTargetTable().getSourceType());
-        boolean isESToMySQL = isESToMySQLComparison(result.getSourceTable().getSourceType(), 
-                                                  result.getTargetTable().getSourceType());
+        boolean sourceIsES = sourceDbType.equalsIgnoreCase(DatabaseType.ELASTICSEARCH);
+        boolean targetIsES = targetDbType.equalsIgnoreCase(DatabaseType.ELASTICSEARCH);
+        boolean sourceIsPOJO = sourceDbType.equalsIgnoreCase(DatabaseType.POJO);
+        boolean targetIsPOJO = targetDbType.equalsIgnoreCase(DatabaseType.POJO);
+        boolean isPojoOrEsComparison = sourceIsPOJO || targetIsPOJO || sourceIsES || targetIsES;
+
+        String sDataTypeOriginal = sourceColumn.getDataType();
+        String tDataTypeOriginal = targetColumn.getDataType();
+        String sDataTypeLower = sDataTypeOriginal.toLowerCase();
+        String tDataTypeLower = tDataTypeOriginal.toLowerCase();
+
+        boolean typesCompatible = false;
+        ColumnStructure.TypeMapping sourceToTargetMapping = sourceColumn.getTypeMapping(targetDbType);
+        ColumnStructure.TypeMapping targetToSourceMapping = targetColumn.getTypeMapping(sourceDbType);
+
+        logger.debug("Col '{}': Checking type compatibility. Source: '{}' (DB: {}), Target: '{}' (DB: {})", columnName, sDataTypeOriginal, sourceDbType, tDataTypeOriginal, targetDbType);
+        if (sourceToTargetMapping != null) logger.debug("   SourceMapping to TargetDB ({} for col '{}'): {}", targetDbType, columnName, sourceToTargetMapping.getColumnTypes());
+        if (targetToSourceMapping != null) logger.debug("   TargetMapping to SourceDB ({} for col '{}'): {}", sourceDbType, columnName, targetToSourceMapping.getColumnTypes());
+
+        if (sourceIsPOJO) {
+            if (targetIsES || isMySQLFamily(targetDbType)) { // POJO to ES or POJO to MySQL/TiDB
+                logger.debug("Col '{}': Path A (POJO to DB/ES)", columnName);
+                if (sourceToTargetMapping != null) {
+                    typesCompatible = sourceToTargetMapping.hasColumnType(tDataTypeLower);
+                    logger.debug("   Path A - Compatible by sourceToTargetMapping.hasColumnType(\"{}\"): {}", tDataTypeLower, typesCompatible);
+                }
+            } else { // POJO to POJO (or other non-ES/MySQL)
+                 logger.debug("Col '{}': Path B (POJO to Other/POJO)", columnName);
+                 typesCompatible = sDataTypeLower.equals(tDataTypeLower); 
+                 logger.debug("   Path B - Compatible by direct string equality: {}", typesCompatible);
+            }
+        } else if (targetIsPOJO) {
+            if (sourceIsES || isMySQLFamily(sourceDbType)) { // ES to POJO or MySQL/TiDB to POJO
+                logger.debug("Col '{}': Path C (DB/ES to POJO)", columnName);
+                if (targetToSourceMapping != null) { // target (POJO) column's mapping for sourceDB
+                    typesCompatible = targetToSourceMapping.hasColumnType(sDataTypeLower);
+                    logger.debug("   Path C - Compatible by targetToSourceMapping.hasColumnType(\"{}\"): {}", sDataTypeLower, typesCompatible);
+                }
+            } 
+            // else: Other to POJO (will be covered by generic checks or direct equality if Path A didn't make it compatible)
+        } 
         
-        // 检查类型兼容性
-        if (!areTypesCompatible(sourceType, targetType, isMySQLToES)) {
-            columnDiff = createColumnDifference(DifferenceType.COLUMN_TYPE_DIFFERENT,
-                    DifferenceLevel.CRITICAL,
-                    "Column type is different",
-                    columnName,
-                    sourceColumn,
-                    targetColumn);
+        // Generic mapping checks if not yet compatible (e.g. ES to MySQL, or if POJO paths didn't fully resolve)
+        if (!typesCompatible) {
+            logger.debug("Col '{}': Path D (Generic mapping checks as not yet compatible or not primary POJO case)", columnName);
+            if (sourceToTargetMapping != null && targetToSourceMapping != null) { 
+                typesCompatible = sourceToTargetMapping.hasCommonColumnType(targetToSourceMapping);
+                logger.debug("   Path D.1 - Compatible by hasCommonColumnType: {}", typesCompatible);
+            }
+            if (!typesCompatible && sourceToTargetMapping != null) {
+                typesCompatible = sourceToTargetMapping.hasColumnType(tDataTypeLower);
+                logger.debug("   Path D.2 - Compatible by sourceToTargetMapping.hasColumnType(\"{}\"): {}", tDataTypeLower, typesCompatible);
+            }
+            if (!typesCompatible && targetToSourceMapping != null) {
+                typesCompatible = targetToSourceMapping.hasColumnType(sDataTypeLower);
+                logger.debug("   Path D.3 - Compatible by targetToSourceMapping.hasColumnType(\"{}\"): {}", sDataTypeLower, typesCompatible);
+            }
+        }
 
-            // 添加属性差异
-            columnDiff.addPropertyDifference("dataType",
-                    sourceColumn.getDataType(),
-                    targetColumn.getDataType(),
-                    DifferenceLevel.CRITICAL);
+        // Final fallback: direct string equality if still not compatible
+        if (!typesCompatible) {
+            logger.debug("Col '{}': Path E (Fallback to direct string equality)", columnName);
+            typesCompatible = sDataTypeLower.equals(tDataTypeLower);
+            logger.debug("   Path E - Compatible by sDataTypeLower.equals(tDataTypeLower): {}", typesCompatible);
+        }
+        
+        logger.debug("Col '{}': Final typesCompatible = {}", columnName, typesCompatible);
 
-            columnDiff.addPropertyDifference("columnType",
-                    sourceColumn.getColumnType(),
-                    targetColumn.getColumnType(),
-                    DifferenceLevel.CRITICAL);
+        // EXPERIMENTAL CHANGE: If types are compatible and it's a POJO/ES comparison, consider it fully matched for this column and return early.
+        if (typesCompatible && isPojoOrEsComparison) {
+            logger.debug("Col '{}': Types compatible and POJO/ES comparison. Skipping further property checks and marking as no difference for this column.", columnName);
+            // Ensure no ColumnDifference is created or added for this case if types are deemed compatible by mapping.
+            // hasDifferences remains false by default.
+            return; // Exit early, no differences to report for this column
+        }
 
+        if (!typesCompatible) {
+            columnDiff = new ColumnDifference(DifferenceType.COLUMN_TYPE_DIFFERENT,
+                    DifferenceLevel.CRITICAL, "Column type is different", columnName);
+            columnDiff.setSourceColumn(sourceColumn);
+            columnDiff.setTargetColumn(targetColumn);
+            columnDiff.addPropertyDifference("dataType", sDataTypeOriginal, tDataTypeOriginal, DifferenceLevel.CRITICAL);
             hasDifferences = true;
             result.incrementDifferenceCount(DifferenceLevel.CRITICAL);
         } else {
-            // 数据类型兼容，检查其他属性
-            columnDiff = createColumnDifference(DifferenceType.COLUMN_PROPERTY_DIFFERENT,
-                    DifferenceLevel.NOTICE,
-                    "Column properties are different",
-                    columnName,
-                    sourceColumn,
-                    targetColumn);
+            columnDiff = new ColumnDifference(DifferenceType.COLUMN_PROPERTY_DIFFERENT,
+                    DifferenceLevel.NOTICE, "Column properties are different", columnName);
+            columnDiff.setSourceColumn(sourceColumn);
+            columnDiff.setTargetColumn(targetColumn);
 
-            // 检查是否允许为空 - 只要一端是ES，nullable差异都应被忽略
-            boolean sourceIsES = result.getSourceTable().getSourceType().equalsIgnoreCase(DatabaseType.ELASTICSEARCH);
-            boolean targetIsES = result.getTargetTable().getSourceType().equalsIgnoreCase(DatabaseType.ELASTICSEARCH);
-            if (sourceColumn.isNullable() != targetColumn.isNullable() &&
-                    !isIgnoredType(config, "NULLABLE")) {
-                if (!(sourceIsES || targetIsES)) {
-                    columnDiff.addPropertyDifference("nullable",
-                            sourceColumn.isNullable(),
-                            targetColumn.isNullable(),
-                            DifferenceLevel.WARNING);
+            if (!isPojoOrEsComparison) { 
+                if (sourceColumn.isNullable() != targetColumn.isNullable() && !isIgnoredType(config, "NULLABLE")) {
+                    columnDiff.addPropertyDifference("nullable", sourceColumn.isNullable(), targetColumn.isNullable(), DifferenceLevel.WARNING);
                     hasDifferences = true;
                     result.incrementDifferenceCount(DifferenceLevel.WARNING);
                 }
-            }
-
-            // 检查默认值
-            if (!isDefaultValueEqual(sourceColumn.getDefaultValue(), targetColumn.getDefaultValue(),
-                    result.getSourceTable().getSourceType(), result.getTargetTable().getSourceType()) &&
-                    !isIgnoredType(config, "DEFAULT")) {
-                columnDiff.addPropertyDifference("defaultValue",
-                        sourceColumn.getDefaultValue(),
-                        targetColumn.getDefaultValue(),
-                        DifferenceLevel.WARNING);
-                hasDifferences = true;
-                result.incrementDifferenceCount(DifferenceLevel.WARNING);
-            }
-
-            // 检查长度/精度/小数位数
-            // 1. 对于整数类型（scale=0），忽略precision、scale和extra的比对
-            // 2. 对于ES和MySQL的比对，忽略长度/精度/小数位数的比对
-            boolean isIntegerType = isIntegerType(sourceType) || isIntegerType(targetType);
-            boolean shouldCompareLength = !isIntegerType && !areTypesCompatible(sourceType, targetType, isMySQLToES);
-
-            if (shouldCompareLength) {
-                compareColumnLengthProperties(columnDiff, sourceColumn, targetColumn, config, result);
-            }
-
-            // 检查自增属性
-            if (sourceColumn.isAutoIncrement() != targetColumn.isAutoIncrement()) {
-                // 特殊处理：MySQL的AUTO_INCREMENT和TiDB的AUTO_RANDOM是相似的功能
-                boolean isSpecialCase = (result.getSourceTable().getSourceType().equalsIgnoreCase(DatabaseType.MYSQL) &&
-                        result.getTargetTable().getSourceType().equalsIgnoreCase(DatabaseType.TIDB)) &&
-                        (sourceColumn.isAutoIncrement() &&
-                                Boolean.TRUE.equals(targetColumn.getProperties().get("is_auto_random")));
-
-                // 对于ES和MySQL的比对，忽略自增属性的差异
-                boolean isESInvolved = result.getSourceTable().getSourceType().equalsIgnoreCase(DatabaseType.ELASTICSEARCH) ||
-                                     result.getTargetTable().getSourceType().equalsIgnoreCase(DatabaseType.ELASTICSEARCH);
-
-                if (!isSpecialCase && !isESInvolved && !isIgnoredType(config, "AUTO_INCREMENT")) {
-                    columnDiff.addPropertyDifference("autoIncrement",
-                            sourceColumn.isAutoIncrement(),
-                            targetColumn.isAutoIncrement(),
-                            DifferenceLevel.WARNING);
+                if (!isDefaultValueEqual(sourceColumn.getDefaultValue(), targetColumn.getDefaultValue(),
+                        sourceDbType, targetDbType) && !isIgnoredType(config, "DEFAULT")) {
+                    columnDiff.addPropertyDifference("defaultValue", sourceColumn.getDefaultValue(), targetColumn.getDefaultValue(), DifferenceLevel.WARNING);
                     hasDifferences = true;
                     result.incrementDifferenceCount(DifferenceLevel.WARNING);
                 }
-            }
-
-            // 检查注释
-            if (!isCommentEqual(sourceColumn.getComment(), targetColumn.getComment(),
-                    result.getSourceTable().getSourceType(), result.getTargetTable().getSourceType()) &&
+                if (sourceColumn.isAutoIncrement() != targetColumn.isAutoIncrement()) {
+                    boolean isSpecialCase = (isMySQLFamily(sourceDbType) && isMySQLFamily(targetDbType)) && 
+                                            (sourceColumn.isAutoIncrement() && Boolean.TRUE.equals(targetColumn.getProperties().get("is_auto_random")));
+                    if (!isSpecialCase && !isIgnoredType(config, "AUTO_INCREMENT")) {
+                         columnDiff.addPropertyDifference("autoIncrement", sourceColumn.isAutoIncrement(), targetColumn.isAutoIncrement(), DifferenceLevel.WARNING);
+                        hasDifferences = true;
+                        result.incrementDifferenceCount(DifferenceLevel.WARNING);
+                    }
+                }
+                boolean isInteger = isIntegerType(sDataTypeLower) || isIntegerType(tDataTypeLower);
+                if (!isInteger) { 
+                    compareColumnLengthProperties(columnDiff, sourceColumn, targetColumn, config, result, columnName);
+                    if (columnDiff.getPropertyDifferences() != null && 
+                        columnDiff.getPropertyDifferences().keySet().stream().anyMatch(key -> key.equals("length") || key.equals("precision") || key.equals("scale"))) {
+                       hasDifferences = true; 
+                    }
+                }
+                if (!isCommentEqual(sourceColumn.getComment(), targetColumn.getComment(), sourceDbType, targetDbType) && 
                     !isIgnoredType(config, "COMMENT")) {
-                columnDiff.addPropertyDifference("comment",
-                        sourceColumn.getComment(),
-                        targetColumn.getComment(),
-                        DifferenceLevel.NOTICE);
-                hasDifferences = true;
-                result.incrementDifferenceCount(DifferenceLevel.NOTICE);
+                    // For non-POJO/ES, any comment difference is a difference
+                    columnDiff.addPropertyDifference("comment", sourceColumn.getComment(), targetColumn.getComment(), DifferenceLevel.NOTICE);
+                    hasDifferences = true;
+                    result.incrementDifferenceCount(DifferenceLevel.NOTICE);
+                }
+            } 
+        }
+
+        if (hasDifferences && columnDiff != null) { 
+            if ((columnDiff.getPropertyDifferences() != null && !columnDiff.getPropertyDifferences().isEmpty()) || 
+                 columnDiff.getType() == DifferenceType.COLUMN_TYPE_DIFFERENT) {
+                result.getColumnDifferences().add(columnDiff);
             }
         }
-
-        if (hasDifferences) {
-            result.getColumnDifferences().add(columnDiff);
-        }
-    }
-
-    /**
-     * 创建列差异对象
-     */
-    private ColumnDifference createColumnDifference(DifferenceType type, DifferenceLevel level,
-            String message, String columnName, ColumnStructure sourceColumn, ColumnStructure targetColumn) {
-        ColumnDifference diff = new ColumnDifference(type, level, message, columnName);
-        diff.setSourceColumn(sourceColumn);
-        diff.setTargetColumn(targetColumn);
-        return diff;
     }
 
     /**
      * 比较列的长度相关属性
      */
     private void compareColumnLengthProperties(ColumnDifference columnDiff, ColumnStructure sourceColumn,
-            ColumnStructure targetColumn, DataSourceCompareConfig.CompareConfig config, CompareResult result) {
+            ColumnStructure targetColumn, DataSourceCompareConfig.CompareConfig config, CompareResult result, String columnName) {
         if (!Objects.equals(sourceColumn.getLength(), targetColumn.getLength()) &&
                 !isIgnoredType(config, "LENGTH")) {
             columnDiff.addPropertyDifference("length",
@@ -850,11 +910,18 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
     private void compareIndexes(CompareResult result, DataSourceCompareConfig.CompareConfig config) {
         TableStructure sourceTable = result.getSourceTable();
         TableStructure targetTable = result.getTargetTable();
+        
+        String sourceType = sourceTable.getSourceType();
+        String targetType = targetTable.getSourceType();
+        
+        boolean sourceIsES = sourceType.equalsIgnoreCase(DatabaseType.ELASTICSEARCH);
+        boolean targetIsES = targetType.equalsIgnoreCase(DatabaseType.ELASTICSEARCH);
+        boolean sourceIsPOJO = sourceType.equalsIgnoreCase(DatabaseType.POJO);
+        boolean targetIsPOJO = targetType.equalsIgnoreCase(DatabaseType.POJO);
 
-        // 如果源表或目标表是ES，则跳过索引比对
-        if (sourceTable.getSourceType().equalsIgnoreCase(DatabaseType.ELASTICSEARCH) || 
-            targetTable.getSourceType().equalsIgnoreCase(DatabaseType.ELASTICSEARCH)) {
-            logger.debug("Skipping index comparison for Elasticsearch table");
+        // 如果源表或目标表是ES或POJO，则跳过索引比对
+        if (sourceIsES || targetIsES || sourceIsPOJO || targetIsPOJO) {
+            logger.debug("Skipping index comparison for {} vs {}", sourceType, targetType);
             return;
         }
 
@@ -968,9 +1035,70 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
             result.incrementDifferenceCount(level);
         }
 
+        // 检查索引属性
+        if (sourceIndex.getProperties() != null && targetIndex.getProperties() != null) {
+            Set<String> allPropertyKeys = new HashSet<>();
+            allPropertyKeys.addAll(sourceIndex.getProperties().keySet());
+            allPropertyKeys.addAll(targetIndex.getProperties().keySet());
+
+            for (String key : allPropertyKeys) {
+                Object sourceValue = sourceIndex.getProperties().get(key);
+                Object targetValue = targetIndex.getProperties().get(key);
+
+                // 跳过一些非关键属性
+                if (isNonEssentialIndexProperty(key)) {
+                    continue;
+                }
+
+                if (!Objects.equals(sourceValue, targetValue)) {
+                    DifferenceLevel level = getIndexPropertyDifferenceLevel(key);
+                    indexDiff.addPropertyDifference(key,
+                            sourceValue,
+                            targetValue,
+                            level);
+                    hasDifferences = true;
+                    result.incrementDifferenceCount(level);
+                }
+            }
+        }
+
         if (hasDifferences) {
             result.getIndexDifferences().add(indexDiff);
         }
+    }
+
+    /**
+     * 判断是否为非关键索引属性
+     */
+    private boolean isNonEssentialIndexProperty(String propertyName) {
+        return propertyName.equals("comment") ||
+               propertyName.equals("description") ||
+               propertyName.equals("label") ||
+               propertyName.equals("displayName") ||
+               propertyName.equals("format") ||
+               propertyName.equals("pattern");
+    }
+
+    /**
+     * 获取索引属性差异级别
+     */
+    private DifferenceLevel getIndexPropertyDifferenceLevel(String propertyName) {
+        // 关键属性使用警告级别
+        if (propertyName.contains("unique") || 
+            propertyName.contains("primary") || 
+            propertyName.contains("type")) {
+            return DifferenceLevel.WARNING;
+        }
+
+        // 性能相关属性使用通知级别
+        if (propertyName.contains("sort") || 
+            propertyName.contains("order") || 
+            propertyName.contains("direction")) {
+            return DifferenceLevel.NOTICE;
+        }
+
+        // 默认使用通知级别
+        return DifferenceLevel.NOTICE;
     }
 
     /**
@@ -1046,41 +1174,6 @@ public class TableStructureCompareServiceImpl implements TableStructureCompareSe
             sourceType.equalsIgnoreCase(DatabaseType.MYSQL) ||
             sourceType.equalsIgnoreCase(DatabaseType.TIDB)
         );
-    }
-
-    /**
-     * 检查两个类型是否兼容
-     */
-    private boolean areTypesCompatible(String sourceType, String targetType, boolean isMySQLToES) {
-        if (sourceType == null || targetType == null) {
-            return false;
-        }
-        
-        // 转换为小写进行比较
-        String normalizedSourceType = sourceType.toLowerCase();
-        String normalizedTargetType = targetType.toLowerCase();
-        
-        // 如果类型完全相同，直接返回true
-        if (normalizedSourceType.equals(normalizedTargetType)) {
-            return true;
-        }
-        
-        // 根据比对方向获取映射
-        if (isMySQLToES) {
-            // MySQL到ES的映射
-            Collection<String> possibleESTypes = MYSQL_TO_ES_TYPE_MAPPING.get(normalizedSourceType);
-            return possibleESTypes != null && possibleESTypes.contains(normalizedTargetType);
-        } else {
-            // ES到MySQL或ES到ES的映射
-            if (normalizedSourceType.equals(normalizedTargetType)) {
-                // ES到ES的情况,类型相同则兼容
-                return true;
-            }
-            
-            // 使用ES_TO_MYSQL_TYPE_MAPPING直接查找对应的MySQL类型
-            Collection<String> possibleMySQLTypes = ES_TO_MYSQL_TYPE_MAPPING.get(normalizedSourceType);
-            return possibleMySQLTypes != null && possibleMySQLTypes.contains(normalizedTargetType);
-        }
     }
 
     /**
