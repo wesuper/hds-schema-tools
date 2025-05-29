@@ -6,25 +6,18 @@ import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
+import org.wesuper.jtools.hdscompare.constants.DatabaseType;
 import org.wesuper.jtools.hdscompare.model.ColumnStructure;
 import org.wesuper.jtools.hdscompare.model.TableStructure;
-import org.wesuper.jtools.hdscompare.constants.DatabaseType;
 
 import java.lang.reflect.Field;
-// import java.lang.reflect.Method; // Method import is not used
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap; // Added for caching
-
-// Imports for class names used in static block
 import java.math.BigDecimal;
-import java.util.Date;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.sql.Timestamp;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * POJO表结构提取器实现

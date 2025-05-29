@@ -7,15 +7,15 @@ import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
+import org.elasticsearch.common.settings.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
+import org.wesuper.jtools.hdscompare.constants.DatabaseType;
 import org.wesuper.jtools.hdscompare.model.ColumnStructure;
 import org.wesuper.jtools.hdscompare.model.IndexStructure;
 import org.wesuper.jtools.hdscompare.model.TableStructure;
-import org.wesuper.jtools.hdscompare.constants.DatabaseType;
 
 import java.util.ArrayList;
 import java.util.HashMap;

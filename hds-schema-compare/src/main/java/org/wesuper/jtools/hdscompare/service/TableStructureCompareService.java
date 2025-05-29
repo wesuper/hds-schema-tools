@@ -1,10 +1,10 @@
 package org.wesuper.jtools.hdscompare.service;
 
-import java.util.List;
-
 import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
 import org.wesuper.jtools.hdscompare.model.CompareResult;
 import org.wesuper.jtools.hdscompare.model.TableStructure;
+
+import java.util.List;
 
 /**
  * 表结构比对服务接口

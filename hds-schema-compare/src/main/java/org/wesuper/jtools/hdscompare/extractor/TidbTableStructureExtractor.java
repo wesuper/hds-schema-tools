@@ -4,11 +4,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
 import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
+import org.wesuper.jtools.hdscompare.constants.DatabaseType;
 import org.wesuper.jtools.hdscompare.model.ColumnStructure;
 import org.wesuper.jtools.hdscompare.model.TableStructure;
-import org.wesuper.jtools.hdscompare.constants.DatabaseType;
 
 import java.util.Map;
 

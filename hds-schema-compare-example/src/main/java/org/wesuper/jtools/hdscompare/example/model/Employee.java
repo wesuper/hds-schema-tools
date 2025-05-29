@@ -1,6 +1,7 @@
 package org.wesuper.jtools.hdscompare.example.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Date;
 
 /**

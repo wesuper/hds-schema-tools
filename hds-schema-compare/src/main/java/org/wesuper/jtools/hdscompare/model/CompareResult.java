@@ -1,9 +1,9 @@
 package org.wesuper.jtools.hdscompare.model;
 
-import java.util.List;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 表结构比对结果模型

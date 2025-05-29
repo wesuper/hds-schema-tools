@@ -2,14 +2,11 @@ package org.wesuper.jtools.hdscompare.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.wesuper.jtools.hdscompare.starter.TableStructureCompareAutoStarter;
-import org.wesuper.jtools.hdscompare.extractor.TableStructureExtractor;
-import org.wesuper.jtools.hdscompare.extractor.TableStructureExtractorFactory;
-import org.wesuper.jtools.hdscompare.extractor.MySqlTableStructureExtractor;
-import org.wesuper.jtools.hdscompare.extractor.TidbTableStructureExtractor;
-import org.wesuper.jtools.hdscompare.extractor.PojoTableStructureExtractor;
+import org.wesuper.jtools.hdscompare.extractor.*;
 import org.wesuper.jtools.hdscompare.service.TableStructureCompareService;
 import org.wesuper.jtools.hdscompare.service.TableStructureCompareServiceImpl;
+import org.wesuper.jtools.hdscompare.starter.TableStructureCompareAutoStarter;
+
 import java.util.List;
 
 @Configuration

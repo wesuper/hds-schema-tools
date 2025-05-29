@@ -3,32 +3,20 @@ package org.wesuper.jtools.hdscompare.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
+import org.wesuper.jtools.hdscompare.constants.DatabaseType;
 import org.wesuper.jtools.hdscompare.extractor.TableStructureExtractor;
 import org.wesuper.jtools.hdscompare.extractor.TableStructureExtractorFactory;
 import org.wesuper.jtools.hdscompare.model.ColumnStructure;
 import org.wesuper.jtools.hdscompare.model.CompareResult;
+import org.wesuper.jtools.hdscompare.model.CompareResult.*;
 import org.wesuper.jtools.hdscompare.model.IndexStructure;
 import org.wesuper.jtools.hdscompare.model.TableStructure;
-import org.wesuper.jtools.hdscompare.model.CompareResult.ColumnDifference;
-import org.wesuper.jtools.hdscompare.model.CompareResult.DifferenceLevel;
-import org.wesuper.jtools.hdscompare.model.CompareResult.DifferenceType;
-import org.wesuper.jtools.hdscompare.model.CompareResult.IndexDifference;
-import org.wesuper.jtools.hdscompare.model.CompareResult.TableDifference;
-import org.wesuper.jtools.hdscompare.constants.DatabaseType;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * 表结构比对服务实现

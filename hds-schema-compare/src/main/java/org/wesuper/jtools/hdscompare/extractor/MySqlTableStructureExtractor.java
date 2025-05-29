@@ -7,22 +7,21 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.datasource.lookup.DataSourceLookupFailureException;
-import org.springframework.stereotype.Component;
 import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
+import org.wesuper.jtools.hdscompare.constants.DatabaseType;
 import org.wesuper.jtools.hdscompare.model.ColumnStructure;
 import org.wesuper.jtools.hdscompare.model.IndexStructure;
 import org.wesuper.jtools.hdscompare.model.TableStructure;
-import org.wesuper.jtools.hdscompare.constants.DatabaseType;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.List;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * MySQL表结构提取器实现

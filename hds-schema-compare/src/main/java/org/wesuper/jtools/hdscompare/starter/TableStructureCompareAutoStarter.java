@@ -7,11 +7,11 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.wesuper.jtools.hdscompare.config.DataSourceCompareConfig;
 import org.wesuper.jtools.hdscompare.model.CompareResult;
-import org.wesuper.jtools.hdscompare.service.TableStructureCompareService;
-import org.wesuper.jtools.hdscompare.model.CompareResult.DifferenceLevel;
-import org.wesuper.jtools.hdscompare.model.CompareResult.TableDifference;
 import org.wesuper.jtools.hdscompare.model.CompareResult.ColumnDifference;
+import org.wesuper.jtools.hdscompare.model.CompareResult.DifferenceLevel;
 import org.wesuper.jtools.hdscompare.model.CompareResult.IndexDifference;
+import org.wesuper.jtools.hdscompare.model.CompareResult.TableDifference;
+import org.wesuper.jtools.hdscompare.service.TableStructureCompareService;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;

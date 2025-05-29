@@ -1,10 +1,6 @@
 package org.wesuper.jtools.hdscompare.model;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * 索引结构模型，用于统一描述不同数据源的索引结构

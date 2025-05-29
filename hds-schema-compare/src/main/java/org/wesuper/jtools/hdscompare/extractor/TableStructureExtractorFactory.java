@@ -3,10 +3,10 @@ package org.wesuper.jtools.hdscompare.extractor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.ArrayList;
 
 /**
  * 表结构提取器工厂类，根据数据源类型获取对应的表结构提取器

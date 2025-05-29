@@ -3,13 +3,7 @@ package org.wesuper.jtools.hdscompare.model;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 /**
  * 字段结构模型，用于统一描述不同数据源的字段结构
