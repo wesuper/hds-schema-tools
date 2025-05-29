@@ -32,7 +32,7 @@
 
 ```mermaid
 graph TD
-    A[应用启动] --> AC[配置加载与合并 (DataSourceCompareConfig)]
+    A[应用启动] --> AC[配置加载与合并 （DataSourceCompareConfig）]
     AC --> B[TableStructureCompareAutoStarter]
     B --> C[TableStructureCompareService]
     C --> D[TableStructureExtractorFactory]
